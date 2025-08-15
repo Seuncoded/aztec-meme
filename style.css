@@ -172,25 +172,27 @@ input, button { font-size:16px; }
 }
 
 /* clickable handle pill */
+/* Username pill */
 .by{
-  display:inline-block;
+  appearance: none;
+  border: 0;
   background: linear-gradient(135deg, #6f6ce8, #9d9bff);
-  color:#fff !important;
-  padding:4px 10px;
-  border-radius:999px;
-  font-weight:800;
-  font-size:12px;
-  border:0;
-  cursor:pointer;
-  text-decoration:none;
-  box-shadow:0 6px 14px rgba(111,108,232,.25);
-  transition: transform .12s ease, filter .12s ease, box-shadow .12s ease;
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.18);
+  transition: transform .15s ease, filter .15s ease, box-shadow .15s ease;
+  text-decoration: none;               /* ensure no underline */
 }
-.by:hover{
-  transform: translateY(-1px) scale(1.03);
-  filter: brightness(1.05);
-  box-shadow:0 8px 18px rgba(111,108,232,.35);
-}
+.by:hover{ transform: translateY(-1px); filter: brightness(1.06); }
+.by:focus-visible{ outline: 2px solid #aab0ff; outline-offset: 2px; }
+.by .at{ opacity:.9; font-weight:900; }
 
 /* Smooth filter transitions */
 .grid.fade-out { opacity: 0; transition: opacity .25s ease; }
