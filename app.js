@@ -6,6 +6,46 @@ const grid = $('#grid');
 const msg  = $('#msg');
 const btn  = $('#submitBtn');
 
+// Small pill that shows when a handle filter is active
+let filterHandle = null;
+function ensureFilterBar() {
+  let bar = $('#filterBar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'filterBar';
+    bar.style.cssText = `
+      display:none; margin:8px auto 6px; text-align:center;
+    `;
+    // insert before the grid
+    const wrap = $('.wrap') || document.body;
+    wrap.insertBefore(bar, grid);
+  }
+  return bar;
+}
+function renderFilterBar() {
+  const bar = ensureFilterBar();
+  if (!filterHandle) {
+    bar.style.display = 'none';
+    bar.innerHTML = '';
+    return;
+  }
+  bar.style.display = 'block';
+  bar.innerHTML = `
+    <span style="
+      display:inline-block; padding:8px 12px; border-radius:999px;
+      background:#0f1a39; border:1px solid #1d2952; color:#dbe0ff; font-weight:800; font-size:13px;">
+      Showing memes by @${filterHandle}
+      <button id="clearFilter" style="
+        margin-left:10px; padding:4px 8px; border:0; cursor:pointer;
+        border-radius:999px; background:#22305d; color:#fff; font-weight:800;">Clear</button>
+    </span>
+  `;
+  $('#clearFilter')?.addEventListener('click', () => {
+    filterHandle = null;
+    render(); // reload default feed
+  });
+}
+
 function showToast(message, type = 'info', ms = 2600) {
   const el = document.getElementById('toast');
   if (!el) return;
@@ -27,15 +67,18 @@ function tileNode(item, delayIdx){
   div.innerHTML = `
     <img class="img" src="${item.img_url}" alt="meme by @${item.handle}" loading="lazy" decoding="async">
     <div class="meta">
-      <span class="by">@${item.handle}</span>
+      <button class="by" data-h="${item.handle}" title="See all by @${item.handle}" style="
+        background:none; border:0; color:#cfd6ff; font-weight:700; font-size:12px; cursor:pointer;
+        padding:0; text-decoration:underline;">@${item.handle}</button>
     </div>
   `;
   return div;
 }
 
 // ===== data =====
-async function listMemes(){
-  const r = await fetch('/api/memes', { cache:'no-store' });
+async function listMemes(handle){
+  const q = handle ? `?handle=${encodeURIComponent(handle)}` : '';
+  const r = await fetch('/api/memes' + q, { cache:'no-store' });
   if (!r.ok) throw new Error('memes list failed');
   const data = await r.json();
   return Array.isArray(data) ? data : [];
@@ -46,7 +89,9 @@ async function render(){
   if (!grid) return;
   try {
     if (msg) msg.textContent = '';
-    const memes = await listMemes();
+    renderFilterBar();
+
+    const memes = await listMemes(filterHandle);
 
     if (!Array.isArray(memes) || !memes.length){
       grid.innerHTML = '<div style="color:#c8cff9;padding:20px">No memes yet. Be the first!</div>';
@@ -61,6 +106,16 @@ async function render(){
     if (msg) msg.textContent = 'Failed to load memes.';
   }
 }
+
+// ===== click a handle to filter =====
+grid?.addEventListener('click', (e) => {
+  const byBtn = e.target.closest('.by');
+  if (!byBtn) return;
+  const h = (byBtn.dataset.h || '').trim().toLowerCase();
+  if (!h) return;
+  filterHandle = h;
+  render();
+});
 
 // ===== link submit =====
 $('#form')?.addEventListener('submit', async (e)=>{
@@ -90,7 +145,12 @@ $('#form')?.addEventListener('submit', async (e)=>{
         showToast('Meme added! 🎉', 'success');
       }
       $('#form')?.reset();
-      await render();
+      // If we were filtering to that same user, keep the filter active and re-render
+      if (filterHandle && filterHandle === (rawHandle || '').replace(/^@+/, '').toLowerCase()) {
+        await render();
+      } else {
+        await render();
+      }
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   } catch {
@@ -103,7 +163,7 @@ $('#form')?.addEventListener('submit', async (e)=>{
 
 // ===== upload submit =====
 const uploadForm   = $('#uploadForm');
-const uploadFile   = $('#file');            // <-- matches your HTML id="file"
+const uploadFile   = $('#file');            // matches your HTML id="file"
 const uploadHandle = $('#uploadHandle');
 const uploadBtn    = $('#uploadBtn');
 const uploadMsg    = $('#uploadMsg');
@@ -153,7 +213,7 @@ uploadForm?.addEventListener('submit', async (e) => {
       showToast('Uploaded ✅', 'success');
       uploadForm?.reset();
       if (preview) preview.style.display = 'none';
-      if (typeof render === 'function') await render();
+      await render();
       window.scrollTo({ top: 0, behavior:'smooth' });
     }
   } catch {
