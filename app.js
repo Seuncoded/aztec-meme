@@ -6,6 +6,18 @@ const grid = $('#grid');
 const msg  = $('#msg');
 const btn  = $('#submitBtn');
 
+function showToast(message, type = 'info', ms = 2600) {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  el.textContent = message;
+  el.className = 'toast ' + (type === 'success' ? 'success' : type === 'error' ? 'error' : type === 'warn' ? 'warn' : '');
+  // force reflow to restart animation
+  void el.offsetWidth;
+  el.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => el.classList.remove('show'), ms);
+}
+
 /* ---------- card builder (same size/feel as before) ---------- */
 function tileNode(item, delayIdx = 0){
   const el = document.createElement('article');
@@ -59,12 +71,11 @@ async function render(){
 /* ---------- link submit ---------- */
 $('#form')?.addEventListener('submit', async (e)=>{
   e.preventDefault();
-  const rawHandle = $('#handle')?.value || '';
-  const imgUrl    = $('#imgUrl')?.value?.trim() || '';
-  if (!rawHandle || !imgUrl) return;
+  const rawHandle = $('#handle').value;
+  const imgUrl = $('#imgUrl').value.trim();
+  if (!rawHandle || !imgUrl) { showToast('Enter @handle and image URL', 'warn'); return; }
 
-  if (btn){ btn.disabled = true; btn.textContent = 'Submitting…'; }
-  msg && (msg.textContent = '');
+  btn.disabled = true; btn.textContent = 'Submitting…'; msg.textContent = '';
 
   try {
     const r = await fetch('/api/submit-meme', {
@@ -73,17 +84,25 @@ $('#form')?.addEventListener('submit', async (e)=>{
       body: JSON.stringify({ handle: rawHandle, imgUrl })
     });
     const j = await r.json();
-    if (!r.ok || !j.ok){
-      msg && (msg.textContent = j?.error || 'Network error');
+
+    if (!r.ok) {
+      showToast(j?.error || 'Network error', 'error', 3200);
+      msg.textContent = j?.error || 'Network error';
     } else {
-      $('#form')?.reset();
+      if (j.duplicate) {
+        showToast('That image is already on the wall ✨', 'warn');
+      } else {
+        showToast('Meme added! 🎉', 'success');
+      }
+      $('#form').reset();
       await render();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   } catch {
-    msg && (msg.textContent = 'Network error');
+    showToast('Network error', 'error', 3200);
+    msg.textContent = 'Network error';
   } finally {
-    if (btn){ btn.disabled = false; btn.textContent = 'Submit'; }
+    btn.disabled = false; btn.textContent = 'Submit';
   }
 });
 
@@ -109,12 +128,12 @@ uploadFile?.addEventListener('change', () => {
 
 uploadForm?.addEventListener('submit', async (e) => {
   e.preventDefault();
-  if (uploadMsg) uploadMsg.textContent = '';
+  uploadMsg.textContent = '';
 
-  const rawHandle = uploadHandle?.value?.trim();
-  if (!rawHandle){ if (uploadMsg) uploadMsg.textContent = 'Enter your @handle'; return; }
-  const file = uploadFile?.files?.[0];
-  if (!file){ if (uploadMsg) uploadMsg.textContent = 'Choose an image'; return; }
+  const rawHandle = uploadHandle.value.trim();
+  if (!rawHandle) { showToast('Enter your @handle', 'warn'); return; }
+  const file = uploadFile.files?.[0];
+  if (!file) { showToast('Choose an image', 'warn'); return; }
 
   const dataUrl = await new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -124,7 +143,7 @@ uploadForm?.addEventListener('submit', async (e) => {
   });
 
   try {
-    if (uploadBtn){ uploadBtn.disabled = true; uploadBtn.textContent = 'Uploading…'; }
+    uploadBtn.disabled = true; uploadBtn.textContent = 'Uploading…';
 
     const resp = await fetch('/api/upload', {
       method: 'POST',
@@ -133,19 +152,19 @@ uploadForm?.addEventListener('submit', async (e) => {
     });
     const j = await resp.json();
 
-    if (!resp.ok || !j.ok){
-      if (uploadMsg) uploadMsg.textContent = j?.error || 'Upload failed';
+    if (!resp.ok || !j.ok) {
+      showToast(j?.error || 'Upload failed', 'error', 3200);
     } else {
-      if (uploadMsg) uploadMsg.textContent = 'Uploaded ✅';
-      uploadForm?.reset?.();
-      if (preview) preview.style.display = 'none';
-      await render();
+      showToast('Uploaded ✅', 'success');
+      uploadForm.reset();
+      preview.style.display = 'none';
+      if (typeof render === 'function') await render();
       window.scrollTo({ top: 0, behavior:'smooth' });
     }
   } catch {
-    if (uploadMsg) uploadMsg.textContent = 'Network error';
+    showToast('Network error', 'error', 3200);
   } finally {
-    if (uploadBtn){ uploadBtn.disabled = false; uploadBtn.textContent = 'Upload Meme'; }
+    uploadBtn.disabled = false; uploadBtn.textContent = 'Upload Meme';
   }
 });
 
