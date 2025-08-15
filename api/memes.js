@@ -6,7 +6,7 @@ export default async function handler(req, res) {
 
   try {
     const client = sb();
-    // Pull newest first; cap to something reasonable
+   
     const { data, error } = await client
       .from('memes')
       .select('id, handle, img_url, created_at')
@@ -15,7 +15,7 @@ export default async function handler(req, res) {
 
     if (error) throw error;
 
-    // shuffle lightly for variety
+  
     const arr = [...(data || [])];
     for (let i = arr.length - 1; i > 0; i--) {
       const j = (Math.random() * (i + 1)) | 0;

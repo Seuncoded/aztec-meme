@@ -48,7 +48,7 @@ async function render(){
       return;
     }
 
-    // Grid
+    
     grid.innerHTML = '';
     const frag = document.createDocumentFragment();
     memes.forEach((m, i) => frag.appendChild(tileNode(m, i)));
@@ -58,7 +58,7 @@ async function render(){
   }
 }
 
-// submit handler
+
 $('#form').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const rawHandle = $('#handle').value;
@@ -144,7 +144,7 @@ uploadForm?.addEventListener('submit', async (e) => {
       uploadMsg.textContent = j?.error || 'Upload failed';
     } else {
       uploadMsg.textContent = 'Uploaded ✅';
-      // Clear form + preview and refresh grid
+     
       uploadForm.reset();
       preview.style.display = 'none';
       if (typeof render === 'function') await render();

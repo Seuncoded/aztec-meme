@@ -1,16 +1,29 @@
-// /api/submit-meme.js
+
 import { sb } from "./_supabase.js";
 
 const BANNED = ["porn", "pornhub", "xvideos"].map(s => s.toLowerCase());
+const MAX_IMAGE_BYTES = 6 * 1024 * 1024; // 6MB
+
 const startsWithAt = v => typeof v === "string" && v.trim().startsWith("@");
 const cleanHandle = s => s?.trim().replace(/^@+/, "").toLowerCase() || "";
+const validHandle = h => /^[a-z0-9_]{3,30}$/.test(h); // 
 
-function isImageUrl(s = "") {
+function isImagePathname(pathname = "") {
+  return /\.(png|jpe?g|gif|webp|avif)$/i.test(pathname);
+}
+
+function normalizeUrl(s = "") {
+  const trimmed = s.trim();
+
   try {
-    const u = new URL(s);
-    // quick filter on extensions or content-type later
-    return /\.(png|jpe?g|gif|webp|avif)$/i.test(u.pathname);
-  } catch { return false; }
+    const u = new URL(trimmed);
+    if (isImagePathname(u.pathname)) {
+  
+      u.search = ""; 
+      return u.toString();
+    }
+  } catch { /* ignore */ }
+  return trimmed;
 }
 
 export default async function handler(req, res) {
@@ -19,39 +32,43 @@ export default async function handler(req, res) {
   try {
     const { handle: rawHandle, imgUrl } = req.body || {};
 
-    // 1) Validate handle (“@” required)
+ 
     if (!startsWithAt(rawHandle)) {
       return res.status(400).json({ error: "Enter your @handle (must start with @)" });
     }
     const handle = cleanHandle(rawHandle);
-    if (!handle) return res.status(400).json({ error: "Invalid handle" });
+    if (!handle || !validHandle(handle)) {
+      return res.status(400).json({ error: "Invalid handle (use letters/numbers/_ only)" });
+    }
     if (BANNED.some(b => handle.includes(b))) {
       return res.status(400).json({ error: "Handle not allowed" });
     }
 
-    // 2) Validate image URL
+   
     if (typeof imgUrl !== "string" || !imgUrl.trim()) {
       return res.status(400).json({ error: "Image URL is required" });
     }
-    const url = imgUrl.trim();
+    const url = normalizeUrl(imgUrl);
 
-    // Allow common image hosts; you can loosen this later
-    if (!isImageUrl(url)) {
-      // Still try to HEAD it to confirm content-type is an image
+    if (!isImagePathname(new URL(url).pathname)) {
       try {
         const head = await fetch(url, { method: "HEAD" });
-        const ct = head.headers.get("content-type") || "";
+        const ct = (head.headers.get("content-type") || "").toLowerCase();
         if (!ct.startsWith("image/")) {
           return res.status(400).json({ error: "URL must point to an image" });
+        }
+        const len = parseInt(head.headers.get("content-length") || "0", 10);
+        if (len && len > MAX_IMAGE_BYTES) {
+          return res.status(400).json({ error: "Image too large (max 6MB)" });
         }
       } catch {
         return res.status(400).json({ error: "URL not reachable" });
       }
     }
 
-    // 3) (Optional) Basic cooldown per handle (60s)
-    //    This avoids spam while keeping it simple.
     const client = sb();
+
+ 
     const since = new Date(Date.now() - 60_000).toISOString();
     const { data: recent } = await client
       .from("memes")
@@ -64,15 +81,28 @@ export default async function handler(req, res) {
       return res.status(429).json({ error: "Please wait a minute before posting again" });
     }
 
-    // 4) Insert (allow duplicates of img_url if you want — or you can prevent duplicates)
-    const { data, error } = await client
+
+    const { data: dup } = await client
       .from("memes")
-      .insert({ handle, img_url: url, source: "url" })
-      .select()
-      .single();
+      .select("id")
+      .eq("handle", handle)
+      .eq("img_url", url)
+      .limit(1);
+
+    if (Array.isArray(dup) && dup.length) {
+      return res.status(200).json({ ok: true, meme: dup[0], duplicate: true });
+    }
+
+ const { data, error } = await client
+  .from("memes")
+  .upsert(
+    { handle, img_url: url, source: "url" },
+    { onConflict: ['handle', 'img_url'], ignoreDuplicates: true }
+  )
+  .select()
+  .single();
 
     if (error) throw error;
-
     return res.status(200).json({ ok: true, meme: data });
   } catch (e) {
     return res.status(500).json({ error: e.message || "Server error" });
