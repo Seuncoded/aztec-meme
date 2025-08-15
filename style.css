@@ -148,3 +148,18 @@ body.resizing .tile {
 body.resizing .tile:hover img {
   transform: none !important;
 }
+
+/* Hide grid while rotating to avoid visible reflow */
+body.rotating #grid { visibility: hidden; }
+
+/* On touch devices (iPad/iPhone etc.), kill the drop + hover transforms to prevent shake */
+@media (hover: none) and (pointer: coarse) {
+  .tile { animation: none !important; opacity: 1 !important; transform: none !important; }
+  .tile img { transition: none !important; }
+}
+
+/* Extra iOS Safari guard */
+@supports (-webkit-touch-callout: none) {
+  .tile { animation: none !important; transform: none !important; }
+  .tile img { transition: none !important; }
+}

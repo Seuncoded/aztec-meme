@@ -180,3 +180,26 @@ window.addEventListener('resize', () => {
     document.body.classList.remove('resizing');
   }, 400); // tune if you like (300–600ms)
 });
+
+// Debounce rotate/orientation changes: hide grid, then re-render once
+let rotateTO;
+window.addEventListener('orientationchange', () => {
+  document.body.classList.add('rotating');
+  clearTimeout(rotateTO);
+  // give iPad a moment to settle its viewport size
+  rotateTO = setTimeout(async () => {
+    if (typeof render === 'function') await render();  // rebuild the masonry once
+    document.body.classList.remove('rotating');
+  }, 600); // you can tweak 500–800ms
+});
+
+// Also debounce generic resize (just in case)
+let rzTO;
+window.addEventListener('resize', () => {
+  document.body.classList.add('rotating');
+  clearTimeout(rzTO);
+  rzTO = setTimeout(async () => {
+    if (typeof render === 'function') await render();
+    document.body.classList.remove('rotating');
+  }, 400);
+});
