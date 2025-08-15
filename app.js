@@ -6,6 +6,17 @@ const grid = $('#grid');
 const msg  = $('#msg');
 const btn  = $('#submitBtn');
 
+grid.addEventListener(
+  'error',
+  (e) => {
+    const t = e.target;
+    if (t && t.tagName === 'IMG') {
+      t.closest('.tile')?.remove();
+    }
+  },
+  true // capture phase so image load errors are caught
+);
+
 function showToast(message, type = 'info', ms = 2600) {
   const el = document.getElementById('toast');
   if (!el) return;
@@ -46,9 +57,8 @@ function tileNode(item, delayIdx){
       src="${item.img_url}"
       alt="meme by @${item.handle}"
       loading="lazy"
-      decoding="async"
       referrerpolicy="no-referrer"
-      onerror="this.closest('.tile')?.remove()"
+      onerror="this.onerror=null; this.closest('.tile')?.remove();"
     >
     <div class="meta">
       <span class="by">@${item.handle}</span>
