@@ -236,6 +236,3 @@ input, button { font-size:16px; }
   box-shadow: 0 2px 6px rgba(0,0,0,0.2);
 }
 
-/* Hide handle until its image is loaded */
-.tile .meta{ opacity:0; transition:opacity .2s ease; }
-.tile.ready .meta{ opacity:1; }

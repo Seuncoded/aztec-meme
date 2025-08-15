@@ -73,30 +73,21 @@ function tileNode(item, delayIdx, eager = false){
   div.className = 'tile';
   div.style.setProperty('--d', `${(delayIdx||0) * 0.03}s`);
 
-  // eager: first page (above-the-fold) loads immediately; later pages lazy-load
-  const imgAttrs = eager ? `decoding="async" fetchpriority="high"` 
-                         : `loading="lazy" decoding="async"`;
+  const imgAttrs = eager
+    ? `decoding="async" fetchpriority="high"`
+    : `loading="lazy" decoding="async"`;
 
   div.innerHTML = `
     <img class="img" ${imgAttrs}
          src="${item.img_url}"
-         alt="meme by @${item.handle}">
+         alt="meme by @${item.handle}"
+         onerror="this.style.opacity=0; this.alt='image failed to load';">
     <div class="meta">
       <button class="by" data-h="${item.handle}" title="See all by @${item.handle}">
         <span class="at">@</span>${item.handle}
       </button>
     </div>
   `;
-
-  // Wait for the image to load, then reveal the meta
-  const img = div.querySelector('img');
-  if (img.complete && img.naturalWidth > 0) {
-    div.classList.add('ready');
-  } else {
-    img.addEventListener('load', () => div.classList.add('ready'), { once:true });
-    img.addEventListener('error', () => div.classList.add('ready'), { once:true }); // still show meta on error
-  }
-
   return div;
 }
 
