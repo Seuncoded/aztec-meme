@@ -1,4 +1,4 @@
-// ===== helpers =====
+
 const $  = (sel, root=document) => root.querySelector(sel);
 const $$ = (sel, root=document) => [...root.querySelectorAll(sel)];
 
@@ -6,16 +6,16 @@ const grid = $('#grid');
 const msg  = $('#msg');
 const btn  = $('#submitBtn');
 
-// Filter state (click @handle to filter)
+
 let filterHandle = null;
 
-// Paging state
+
 let page = 0;
 const LIMIT = 12;
 let loading = false;
 let done = false;
 
-// Sentinel for intersection observer
+
 let sentinel;
 
 // Toast
@@ -32,7 +32,7 @@ function showToast(message, type = 'info', ms = 2600) {
   showToast._t = setTimeout(() => el.classList.remove('show'), ms);
 }
 
-// Filter pill
+
 function ensureFilterBar() {
   let bar = $('#filterBar');
   if (!bar) {
@@ -67,7 +67,7 @@ function renderFilterBar() {
   });
 }
 
-// ===== UI builders =====
+
 function tileNode(item, delayIdx, eager = false){
   const div = document.createElement('article');
   div.className = 'tile';
@@ -99,10 +99,10 @@ async function fetchPage(p, handle){
   if (handle) params.set('handle', handle);
   const r = await fetch('/api/memes?' + params.toString(), { cache:'no-store' });
   if (!r.ok) throw new Error('memes list failed');
-  return r.json(); // { items: [], has_more: bool }
+  return r.json(); // 
 }
 
-// ===== render / paging =====
+
 function addSentinel(){
   if (sentinel) return;
   sentinel = document.createElement('div');
@@ -126,22 +126,22 @@ function setupObserver(){
 }
 
 function setFilter(handle){
-  // smooth fade-out current grid
+ 
   grid.classList.add('fade-out');
   filterHandle = handle ? handle.toLowerCase() : null;
   renderFilterBar();
-  // reset paging
+ 
   page = 0; done = false; loading = false;
-  // clear and fade-in after small delay
+
   setTimeout(async ()=>{
     grid.innerHTML = '';
     grid.classList.remove('fade-out');
     grid.classList.add('fade-in');
-    // initial page load
+  
     await loadNextPage(true);
-    // then ensure observer
+  
     setupObserver();
-    // remove fade-in flag to allow future transitions
+ 
     setTimeout(()=> grid.classList.remove('fade-in'), 250);
   }, 180);
 }
@@ -150,7 +150,7 @@ async function loadNextPage(initial=false){
   if (loading || done) return;
   loading = true;
 
-  // show a few skeletons only on initial load or if grid is empty
+
   const addSk = initial || grid.childElementCount === 0;
   let skels = [];
   if (addSk){
@@ -163,7 +163,7 @@ async function loadNextPage(initial=false){
 
   try{
     const { items, has_more } = await fetchPage(page, filterHandle);
-    // remove skeletons
+   
     skels.forEach(s => s.remove());
 
     if (!items || items.length === 0){
@@ -189,7 +189,7 @@ items.forEach((m, i) => frag.appendChild(tileNode(m, (page*LIMIT)+i, isFirstPage
   }
 }
 
-// simple gray placeholder while first batch loads
+
 function skeletonNode(){
   const div = document.createElement('article');
   div.className = 'tile skeleton';
@@ -207,7 +207,7 @@ function skeletonNode(){
   return div;
 }
 
-// ===== init (first load + observer) =====
+
 async function initFeed(){
   renderFilterBar();
   await loadNextPage(true);
@@ -215,7 +215,7 @@ async function initFeed(){
 }
 initFeed();
 
-// ===== click a handle to filter =====
+
 grid?.addEventListener('click', (e) => {
   const byBtn = e.target.closest('.by');
   if (!byBtn) return;
@@ -224,7 +224,7 @@ grid?.addEventListener('click', (e) => {
   setFilter(h);
 });
 
-// ===== link submit =====
+
 $('#form')?.addEventListener('submit', async (e)=>{
   e.preventDefault();
   const rawHandle = $('#handle')?.value;
@@ -253,13 +253,13 @@ $('#form')?.addEventListener('submit', async (e)=>{
       }
       $('#form')?.reset();
 
-      // If we're filtered to this handle, reset feed and reload from page 0 for a smooth add
+      
       const cleaned = (rawHandle || '').replace(/^@+/, '').toLowerCase();
       if (filterHandle && filterHandle === cleaned) {
         setFilter(filterHandle);
       } else {
-        // otherwise just prepend a refresh by resetting the feed (keeps UX consistent)
-        setFilter(filterHandle); // re-renders current view
+        
+        setFilter(filterHandle); 
       }
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -271,7 +271,7 @@ $('#form')?.addEventListener('submit', async (e)=>{
   }
 });
 
-// ===== upload submit =====
+
 const uploadForm   = $('#uploadForm');
 const uploadFile   = $('#file');
 const uploadHandle = $('#uploadHandle');

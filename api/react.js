@@ -15,7 +15,7 @@ export default async function handler(req, res) {
 
     const client = sb();
 
-    // call the SQL function to atomically increment
+   
     const { data, error } = await client
       .rpc("inc_reaction", { p_id: memeId, p_key: reaction });
 

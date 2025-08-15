@@ -1,4 +1,4 @@
-// /api/submit-meme.js
+
 import { sb } from "./_supabase.js";
 
 const BANNED = ["porn", "pornhub", "xvideos"].map(s => s.toLowerCase());
@@ -16,7 +16,7 @@ function normalizeUrl(s = "") {
   try {
     const u = new URL(trimmed);
     if (isImagePathname(u.pathname)) {
-      u.search = "";                    // strip query noise so duplicates match
+      u.search = "";                    
       return u.toString();
     }
   } catch {}
@@ -29,7 +29,7 @@ export default async function handler(req, res) {
   try {
     const { handle: rawHandle, imgUrl } = req.body || {};
 
-    // --- handle validation ---
+
     if (!startsWithAt(rawHandle)) {
       return res.status(400).json({ error: "Enter your @handle (must start with @)" });
     }
@@ -41,14 +41,14 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Handle not allowed" });
     }
 
-    // --- image url validation ---
+   
     if (typeof imgUrl !== "string" || !imgUrl.trim()) {
       return res.status(400).json({ error: "Image URL is required" });
     }
     const url = normalizeUrl(imgUrl);
 
     if (!isImagePathname(new URL(url).pathname)) {
-      // as a fallback, HEAD check for image content-type and size
+     
       try {
         const head = await fetch(url, { method: "HEAD" });
         const ct = (head.headers.get("content-type") || "").toLowerCase();
@@ -66,7 +66,7 @@ export default async function handler(req, res) {
 
     const client = sb();
 
-    // --- duplicate protection (same handle + same image) ---
+    
     const { data: dup } = await client
       .from("memes")
       .select("id")
@@ -78,7 +78,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, meme: dup[0], duplicate: true });
     }
 
-    // --- insert (no cooldown) ---
+    
     const { data, error } = await client
       .from("memes")
       .upsert(

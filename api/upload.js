@@ -6,7 +6,7 @@ const MAX_BYTES = 5 * 1024 * 1024;
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
 function parseDataUrl(dataUrl = "") {
-  // data:[mime];base64,XXXX
+  
   const m = dataUrl.match(/^data:(.+?);base64,(.+)$/);
   if (!m) return null;
   const mime = m[1].toLowerCase();
@@ -22,7 +22,7 @@ export default async function handler(req, res) {
     const cleanHandle = String(handle || "").trim().replace(/^@+/, "").toLowerCase();
     if (!cleanHandle) return res.status(400).json({ error: "Handle required" });
 
-    // Parse & validate image
+
     const parsed = parseDataUrl(imageBase64);
     if (!parsed) return res.status(400).json({ error: "Invalid image data" });
     if (!ALLOWED.has(parsed.mime)) return res.status(400).json({ error: "Unsupported image type" });
@@ -38,19 +38,19 @@ export default async function handler(req, res) {
     const filename = `${cleanHandle}-${Date.now()}.${ext}`;
     const client = sbAdmin();
 
-    // Upload to public bucket `memes`
+ 
     const { error: upErr } = await client.storage.from("memes").upload(filename, buf, {
       contentType: parsed.mime,
       upsert: false,
     });
     if (upErr) return res.status(500).json({ error: "Upload failed" });
 
-    // Get public URL
+    
     const { data: pub } = client.storage.from("memes").getPublicUrl(filename);
     const img_url = pub?.publicUrl;
     if (!img_url) return res.status(500).json({ error: "Could not get public URL" });
 
-    // Insert into table
+   
     const { error: dbErr } = await client.from("memes").insert({
       handle: cleanHandle,
       img_url,
