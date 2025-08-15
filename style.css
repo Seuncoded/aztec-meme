@@ -137,3 +137,53 @@ h1{
 /* Hide the old inline message bar permanently */
 .msg{ display:none !important; }
 
+/* ===== Compact forms on mobile ===== */
+@media (max-width: 640px){
+
+  /* tighten the heading zone a bit */
+  .wrap{ margin:22px auto 90px; }
+  h1{ font-size: 36px; line-height: 1.05; margin-bottom: 6px; }
+  .lead{ font-size: 14px; margin-bottom: 10px; }
+
+  /* form rows: stack, smaller gaps */
+  .controls{
+    grid-template-columns: 1fr;      /* stack fields */
+    gap: 8px;                         /* tighter spacing */
+    margin: 10px 0 8px;
+  }
+
+  /* shared height + font size for inputs/buttons */
+  .controls input,
+  .controls button{
+    --h: 40px;                        /* ↓ from ~48–56px */
+    height: var(--h);
+    padding: 0 12px;
+    font-size: 14px;
+    border-radius: 10px;              /* a bit less pill-y */
+    box-shadow: none;                 /* flatter on mobile */
+  }
+
+  /* URL field looks very tall by default; make it match */
+  .controls input[type="url"],
+  .controls input[type="text"]{
+    padding: 10px 12px;
+  }
+
+  /* full‑width buttons, but not so tall */
+  .controls button{
+    width: 100%;
+    font-weight: 800;
+  }
+
+  /* upload row inherits the same compact style */
+  .controls.upload{ margin-top: 8px; }
+
+  /* reduce the little toast/message size */
+  .msg{ font-size: 12px; margin: 2px 0 6px; }
+}
+
+/* iOS Safari sometimes inflates form fonts; keep them consistent */
+input, button { font-size: 16px; }        /* prevents zoom-on-focus on iOS */
+@supports (-webkit-touch-callout: none){
+  .controls input, .controls button { font-size: 15px; }
+}
