@@ -189,6 +189,24 @@ items.forEach((m, i) => frag.appendChild(tileNode(m, (page*LIMIT)+i, isFirstPage
   }
 }
 
+// simple gray placeholder while first batch loads
+function skeletonNode(){
+  const div = document.createElement('article');
+  div.className = 'tile skeleton';
+  div.innerHTML = `
+    <div class="img" style="
+      width:100%;
+      aspect-ratio: 1 / 1;
+      border-radius:14px;
+      background: linear-gradient(90deg, #0f1a39 25%, #142046 37%, #0f1a39 63%);
+      background-size: 400% 100%;
+      animation: skel 1.2s ease-in-out infinite;
+    "></div>
+    <div class="meta" style="height:18px;margin-top:6px;background:#0f1a39;border-radius:8px;"></div>
+  `;
+  return div;
+}
+
 // ===== init (first load + observer) =====
 async function initFeed(){
   renderFilterBar();

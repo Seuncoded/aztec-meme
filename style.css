@@ -236,3 +236,11 @@ input, button { font-size:16px; }
   box-shadow: 0 2px 6px rgba(0,0,0,0.2);
 }
 
+@keyframes skel { 
+  0% { background-position: 100% 0; } 
+  100% { background-position: 0 0; } 
+}
+
+.fade-out { opacity:.2; transition: opacity .18s ease; }
+.fade-in  { opacity:1;  transition: opacity .18s ease; }
+
