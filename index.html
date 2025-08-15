@@ -17,7 +17,18 @@
       <input id="imgUrl" type="url" placeholder="https://…image.jpg/png/gif/webp" />
       <button id="submitBtn" type="submit">Submit</button>
     </form>
+<!-- Upload form -->
+<form id="uploadForm" class="controls" autocomplete="off" style="margin-top:14px; flex-wrap:wrap">
+  <input id="uploadHandle" type="text" placeholder="@handle" style="flex:1; min-width:180px" />
+  <input id="uploadFile" type="file" accept="image/*" style="flex:1; min-width:220px" />
+  <button id="uploadBtn" type="submit">Upload Meme</button>
+</form>
+<div id="uploadMsg" class="msg"></div>
 
+<!-- Optional preview -->
+<div id="preview" style="display:none; margin-top:8px">
+  <img id="previewImg" alt="preview" style="max-width:220px; border-radius:10px; border:1px solid #22305d;">
+</div>
     <div id="msg" class="msg"></div>
 
     <!-- Featured -->

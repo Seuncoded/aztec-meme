@@ -89,3 +89,71 @@ $('#form').addEventListener('submit', async (e)=>{
 });
 
 render();
+
+// ----- Meme Upload (base64 JSON -> /api/upload) -----
+const uploadForm  = document.getElementById('uploadForm');
+const uploadFile  = document.getElementById('uploadFile');
+const uploadHandle= document.getElementById('uploadHandle');
+const uploadBtn   = document.getElementById('uploadBtn');
+const uploadMsg   = document.getElementById('uploadMsg');
+const preview     = document.getElementById('preview');
+const previewImg  = document.getElementById('previewImg');
+
+if (uploadFile) {
+  uploadFile.addEventListener('change', () => {
+    const f = uploadFile.files?.[0];
+    if (!f) { preview.style.display = 'none'; return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      previewImg.src = reader.result;
+      preview.style.display = 'block';
+    };
+    reader.readAsDataURL(f);
+  });
+}
+
+uploadForm?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  uploadMsg.textContent = '';
+
+  const rawHandle = uploadHandle.value.trim();
+  if (!rawHandle) { uploadMsg.textContent = 'Enter your @handle'; return; }
+  const file = uploadFile.files?.[0];
+  if (!file) { uploadMsg.textContent = 'Choose an image'; return; }
+
+  // Read file as data URL (base64) to send as JSON
+  const dataUrl = await new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+
+  try {
+    uploadBtn.disabled = true; uploadBtn.textContent = 'Uploading…';
+
+    const resp = await fetch('/api/upload', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({
+        handle: rawHandle,
+        imageBase64: dataUrl,
+      })
+    });
+    const j = await resp.json();
+    if (!resp.ok || !j.ok) {
+      uploadMsg.textContent = j?.error || 'Upload failed';
+    } else {
+      uploadMsg.textContent = 'Uploaded ✅';
+      // Clear form + preview and refresh grid
+      uploadForm.reset();
+      preview.style.display = 'none';
+      if (typeof render === 'function') await render();
+      window.scrollTo({ top: 0, behavior:'smooth' });
+    }
+  } catch (err) {
+    uploadMsg.textContent = 'Network error';
+  } finally {
+    uploadBtn.disabled = false; uploadBtn.textContent = 'Upload Meme';
+  }
+});
