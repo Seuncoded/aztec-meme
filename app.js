@@ -13,27 +13,23 @@ function showToast(message, type = 'info', ms = 2600) {
   el.className = 'toast ' + (type === 'success' ? 'success'
                          : type === 'error'   ? 'error'
                          : type === 'warn'    ? 'warn' : '');
-  // force reflow to restart animation
-  void el.offsetWidth;
+  void el.offsetWidth;             // restart animation
   el.classList.add('show');
   clearTimeout(showToast._t);
   showToast._t = setTimeout(() => el.classList.remove('show'), ms);
 }
 
-
 // ===== UI builders =====
-/* ---------- card builder (no reactions) ---------- */
 function tileNode(item, delayIdx){
   const div = document.createElement('article');
   div.className = 'tile';
   div.style.setProperty('--d', `${(delayIdx||0) * 0.03}s`);
   div.innerHTML = `
-    <img class="img" src="${item.img_url}" alt="meme by @${item.handle}">
+    <img class="img" src="${item.img_url}" alt="meme by @${item.handle}" loading="lazy" decoding="async">
     <div class="meta">
       <span class="by">@${item.handle}</span>
     </div>
   `;
-  r
   return div;
 }
 
@@ -42,10 +38,7 @@ async function listMemes(){
   const r = await fetch('/api/memes', { cache:'no-store' });
   if (!r.ok) throw new Error('memes list failed');
   const data = await r.json();
-  return (Array.isArray(data) ? data : []).map(m => ({
-    ...m,
-    reactions: m.reactions || {}
-  }));
+  return Array.isArray(data) ? data : [];
 }
 
 // ===== render =====
@@ -67,50 +60,6 @@ async function render(){
   } catch (e){
     if (msg) msg.textContent = 'Failed to load memes.';
   }
-}
-
-// ===== reactions (event delegation on the grid) =====
-if (grid) {
-  grid.addEventListener('click', async (e) => {
-    const btnEl = e.target.closest('.rx');
-    if (!btnEl) return;
-
-    const wrap = btnEl.closest('.reactions');
-    const id   = wrap?.dataset.id;
-    const key  = btnEl.dataset.r;
-    const iEl  = btnEl.querySelector('i');
-    if (!id || !key || !iEl) return;
-
-    // optimistic bump
-    iEl.textContent = (parseInt(iEl.textContent || '0', 10) + 1);
-
-    try{
-      const r = await fetch('/api/react', {
-        method:'POST',
-        headers:{ 'Content-Type':'application/json' },
-        body: JSON.stringify({ memeId: id, reaction: key })
-      });
-      const j = await r.json();
-
-      if(!r.ok || !j.ok){
-        iEl.textContent = (parseInt(iEl.textContent || '1', 10) - 1);
-        showToast(j?.error || 'Failed to react', 'error', 2500);
-        return;
-      }
-
-      // sync counts from server
-      const rx = j.reactions || {};
-      wrap.querySelectorAll('.rx').forEach(b => {
-        const k = b.dataset.r;
-        const el = b.querySelector('i');
-        const v = typeof rx[k] === 'string' ? (parseInt(rx[k],10) || 0) : (rx[k] || 0);
-        el.textContent = v;
-      });
-    } catch {
-      iEl.textContent = (parseInt(iEl.textContent || '1', 10) - 1);
-      showToast('Network error', 'error', 2500);
-    }
-  });
 }
 
 // ===== link submit =====
@@ -154,7 +103,7 @@ $('#form')?.addEventListener('submit', async (e)=>{
 
 // ===== upload submit =====
 const uploadForm   = $('#uploadForm');
-const uploadFile   = $('#uploadFile');
+const uploadFile   = $('#file');            // <-- matches your HTML id="file"
 const uploadHandle = $('#uploadHandle');
 const uploadBtn    = $('#uploadBtn');
 const uploadMsg    = $('#uploadMsg');
