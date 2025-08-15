@@ -6,30 +6,6 @@ const grid = $('#grid');
 const msg  = $('#msg');
 const btn  = $('#submitBtn');
 
-grid.addEventListener(
-  'error',
-  (e) => {
-    const t = e.target;
-    if (t && t.tagName === 'IMG') {
-      t.closest('.tile')?.remove();
-    }
-  },
-  true // capture phase so image load errors are caught
-);
-
-function loadImage(src){
-  return new Promise(resolve=>{
-    if (!src || typeof src !== 'string') return resolve(null);
-    const im = new Image();
-    im.decoding = 'async';
-    im.loading  = 'lazy';
-    im.referrerPolicy = 'no-referrer';
-    im.onload  = () => resolve(src);  // success ⇒ return the src
-    im.onerror = () => resolve(null); // fail   ⇒ null
-    im.src = src;
-  });
-}
-
 function showToast(message, type = 'info', ms = 2600) {
   const el = document.getElementById('toast');
   if (!el) return;
@@ -64,15 +40,8 @@ function tileNode(item, delayIdx){
   const div = document.createElement('article');
   div.className = 'tile';
   div.style.setProperty('--d', `${(delayIdx||0) * 0.03}s`);
-
-  // build markup
   div.innerHTML = `
-    <img class="img"
-         src="${item.img_url}"
-         alt="meme by @${item.handle}"
-         loading="lazy"
-         decoding="async"
-         referrerpolicy="no-referrer">
+    <img class="img" src="${item.img_url}" alt="meme by @${item.handle}">
     <div class="meta">
       <span class="by">@${item.handle}</span>
       <div class="reactions" data-id="${item.id}">
@@ -85,13 +54,6 @@ function tileNode(item, delayIdx){
     </div>
   `;
 
-  // 🔴 Critical: if image fails, remove the whole tile
-  const img = div.querySelector('img');
-  img.addEventListener('error', () => {
-    div.remove();
-  }, { once: true });
-
-  // existing reaction wiring
   div.querySelectorAll('.rx').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const id  = div.querySelector('.reactions').dataset.id;
@@ -109,6 +71,7 @@ function tileNode(item, delayIdx){
         });
         const j = await r.json();
         if(!r.ok || !j.ok){
+          // rollback
           iEl.textContent = (parseInt(iEl.textContent||'1',10)-1);
         }else{
           const rx = j.reactions || {};
@@ -120,6 +83,7 @@ function tileNode(item, delayIdx){
           });
         }
       }catch{
+        // rollback on network error
         iEl.textContent = (parseInt(iEl.textContent||'1',10)-1);
       }
     });
