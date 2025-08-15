@@ -90,7 +90,7 @@ export default async function handler(req, res) {
       .eq("img_url_norm", url.toLowerCase().trim()) // <-- matches generated column
       .limit(1);
     if (Array.isArray(exists) && exists.length) {
-      return res.status(409).json({ error: "This image is already on the wall" });
+      return res.status(409).json({ error: "" });
     }
 
     // 5) Insert and catch duplicate from DB (race-safe)
@@ -103,7 +103,7 @@ export default async function handler(req, res) {
     if (error) {
       if (error.code === "23505") {
         // Unique violation from our img_url_norm index
-        return res.status(409).json({ error: "This image is already on the wall" });
+        return res.status(409).json({ error: "" });
       }
       throw error;
     }
