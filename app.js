@@ -6,17 +6,39 @@ const grid = $('#grid');
 const msg  = $('#msg');
 const btn  = $('#submitBtn');
 
-// Small pill that shows when a handle filter is active
+// Filter state (click @handle to filter)
 let filterHandle = null;
+
+// Paging state
+let page = 0;
+const LIMIT = 12;
+let loading = false;
+let done = false;
+
+// Sentinel for intersection observer
+let sentinel;
+
+// Toast
+function showToast(message, type = 'info', ms = 2600) {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  el.textContent = message;
+  el.className = 'toast ' + (type === 'success' ? 'success'
+                         : type === 'error'   ? 'error'
+                         : type === 'warn'    ? 'warn' : '');
+  void el.offsetWidth;
+  el.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => el.classList.remove('show'), ms);
+}
+
+// Filter pill
 function ensureFilterBar() {
   let bar = $('#filterBar');
   if (!bar) {
     bar = document.createElement('div');
     bar.id = 'filterBar';
-    bar.style.cssText = `
-      display:none; margin:8px auto 6px; text-align:center;
-    `;
-    // insert before the grid
+    bar.style.cssText = 'display:none; margin:8px auto 6px; text-align:center;';
     const wrap = $('.wrap') || document.body;
     wrap.insertBefore(bar, grid);
   }
@@ -41,22 +63,8 @@ function renderFilterBar() {
     </span>
   `;
   $('#clearFilter')?.addEventListener('click', () => {
-    filterHandle = null;
-    render(); // reload default feed
+    setFilter(null);
   });
-}
-
-function showToast(message, type = 'info', ms = 2600) {
-  const el = document.getElementById('toast');
-  if (!el) return;
-  el.textContent = message;
-  el.className = 'toast ' + (type === 'success' ? 'success'
-                         : type === 'error'   ? 'error'
-                         : type === 'warn'    ? 'warn' : '');
-  void el.offsetWidth;             // restart animation
-  el.classList.add('show');
-  clearTimeout(showToast._t);
-  showToast._t = setTimeout(() => el.classList.remove('show'), ms);
 }
 
 // ===== UI builders =====
@@ -66,46 +74,131 @@ function tileNode(item, delayIdx){
   div.style.setProperty('--d', `${(delayIdx||0) * 0.03}s`);
   div.innerHTML = `
     <img class="img" src="${item.img_url}" alt="meme by @${item.handle}" loading="lazy" decoding="async">
-<div class="meta">
-  <button class="by" data-h="${item.handle}" title="See all by @${item.handle}">
-    @${item.handle}
-  </button>
-</div>
+    <div class="meta">
+      <button class="by" data-h="${item.handle}" title="See all by @${item.handle}"
+        style="background:none; border:0; color:#cfd6ff; font-weight:700; font-size:12px; cursor:pointer; padding:0; text-decoration:underline;">
+        @${item.handle}
+      </button>
+    </div>
+  `;
+  return div;
+}
+
+// Skeleton node
+function skeletonNode(){
+  const div = document.createElement('article');
+  div.className = 'tile skeleton';
+  div.innerHTML = `
+    <div class="img"></div>
+    <div class="meta"></div>
   `;
   return div;
 }
 
 // ===== data =====
-async function listMemes(handle){
-  const q = handle ? `?handle=${encodeURIComponent(handle)}` : '';
-  const r = await fetch('/api/memes' + q, { cache:'no-store' });
+async function fetchPage(p, handle){
+  const params = new URLSearchParams();
+  params.set('page', String(p));
+  params.set('limit', String(LIMIT));
+  if (handle) params.set('handle', handle);
+  const r = await fetch('/api/memes?' + params.toString(), { cache:'no-store' });
   if (!r.ok) throw new Error('memes list failed');
-  const data = await r.json();
-  return Array.isArray(data) ? data : [];
+  return r.json(); // { items: [], has_more: bool }
 }
 
-// ===== render =====
-async function render(){
-  if (!grid) return;
-  try {
-    if (msg) msg.textContent = '';
-    renderFilterBar();
+// ===== render / paging =====
+function addSentinel(){
+  if (sentinel) return;
+  sentinel = document.createElement('div');
+  sentinel.id = 'sentinel';
+  sentinel.style.height = '1px';
+  sentinel.style.opacity = '0';
+  grid.after(sentinel);
+}
 
-    const memes = await listMemes(filterHandle);
+let io;
+function setupObserver(){
+  addSentinel();
+  io?.disconnect();
+  io = new IntersectionObserver(async (entries)=>{
+    const entry = entries[0];
+    if (!entry.isIntersecting) return;
+    if (loading || done) return;
+    await loadNextPage();
+  }, { rootMargin: '600px 0px 600px 0px' });
+  io.observe(sentinel);
+}
 
-    if (!Array.isArray(memes) || !memes.length){
-      grid.innerHTML = '<div style="color:#c8cff9;padding:20px">No memes yet. Be the first!</div>';
+function setFilter(handle){
+  // smooth fade-out current grid
+  grid.classList.add('fade-out');
+  filterHandle = handle ? handle.toLowerCase() : null;
+  renderFilterBar();
+  // reset paging
+  page = 0; done = false; loading = false;
+  // clear and fade-in after small delay
+  setTimeout(async ()=>{
+    grid.innerHTML = '';
+    grid.classList.remove('fade-out');
+    grid.classList.add('fade-in');
+    // initial page load
+    await loadNextPage(true);
+    // then ensure observer
+    setupObserver();
+    // remove fade-in flag to allow future transitions
+    setTimeout(()=> grid.classList.remove('fade-in'), 250);
+  }, 180);
+}
+
+async function loadNextPage(initial=false){
+  if (loading || done) return;
+  loading = true;
+
+  // show a few skeletons only on initial load or if grid is empty
+  const addSk = initial || grid.childElementCount === 0;
+  let skels = [];
+  if (addSk){
+    for (let i=0; i<6; i++) {
+      const s = skeletonNode();
+      grid.appendChild(s);
+      skels.push(s);
+    }
+  }
+
+  try{
+    const { items, has_more } = await fetchPage(page, filterHandle);
+    // remove skeletons
+    skels.forEach(s => s.remove());
+
+    if (!items || items.length === 0){
+      if (page === 0 && grid.childElementCount === 0){
+        grid.innerHTML = '<div style="color:#c8cff9;padding:20px">No memes yet. Be the first!</div>';
+      }
+      done = true;
       return;
     }
 
-    grid.innerHTML = '';
     const frag = document.createDocumentFragment();
-    memes.forEach((m, i) => frag.appendChild(tileNode(m, i)));
+    items.forEach((m, i) => frag.appendChild(tileNode(m, (page*LIMIT)+i)));
     grid.appendChild(frag);
+
+    page += 1;
+    done = !has_more;
   } catch (e){
+    skels.forEach(s => s.remove());
     if (msg) msg.textContent = 'Failed to load memes.';
+  } finally {
+    loading = false;
   }
 }
+
+// ===== init (first load + observer) =====
+async function initFeed(){
+  renderFilterBar();
+  await loadNextPage(true);
+  setupObserver();
+}
+initFeed();
 
 // ===== click a handle to filter =====
 grid?.addEventListener('click', (e) => {
@@ -113,8 +206,7 @@ grid?.addEventListener('click', (e) => {
   if (!byBtn) return;
   const h = (byBtn.dataset.h || '').trim().toLowerCase();
   if (!h) return;
-  filterHandle = h;
-  render();
+  setFilter(h);
 });
 
 // ===== link submit =====
@@ -145,11 +237,14 @@ $('#form')?.addEventListener('submit', async (e)=>{
         showToast('Meme added! 🎉', 'success');
       }
       $('#form')?.reset();
-      // If we were filtering to that same user, keep the filter active and re-render
-      if (filterHandle && filterHandle === (rawHandle || '').replace(/^@+/, '').toLowerCase()) {
-        await render();
+
+      // If we're filtered to this handle, reset feed and reload from page 0 for a smooth add
+      const cleaned = (rawHandle || '').replace(/^@+/, '').toLowerCase();
+      if (filterHandle && filterHandle === cleaned) {
+        setFilter(filterHandle);
       } else {
-        await render();
+        // otherwise just prepend a refresh by resetting the feed (keeps UX consistent)
+        setFilter(filterHandle); // re-renders current view
       }
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -163,7 +258,7 @@ $('#form')?.addEventListener('submit', async (e)=>{
 
 // ===== upload submit =====
 const uploadForm   = $('#uploadForm');
-const uploadFile   = $('#file');            // matches your HTML id="file"
+const uploadFile   = $('#file');
 const uploadHandle = $('#uploadHandle');
 const uploadBtn    = $('#uploadBtn');
 const uploadMsg    = $('#uploadMsg');
@@ -213,7 +308,8 @@ uploadForm?.addEventListener('submit', async (e) => {
       showToast('Uploaded ✅', 'success');
       uploadForm?.reset();
       if (preview) preview.style.display = 'none';
-      await render();
+      // refresh current view
+      setFilter(filterHandle);
       window.scrollTo({ top: 0, behavior:'smooth' });
     }
   } catch {
@@ -222,6 +318,3 @@ uploadForm?.addEventListener('submit', async (e) => {
     if (uploadBtn){ uploadBtn.disabled = false; uploadBtn.textContent = 'Upload Meme'; }
   }
 });
-
-// ===== init =====
-render();

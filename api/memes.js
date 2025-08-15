@@ -2,34 +2,46 @@
 import { sb } from "./_supabase.js";
 
 export default async function handler(req, res) {
-  if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
+  if (req.method !== "GET") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
 
   try {
     const client = sb();
-    const handle = (req.query.handle || "").trim().toLowerCase();
 
-    let query = client
+    // query params
+    const handle = (req.query.handle || "").toString().trim().toLowerCase();
+    const page   = Math.max(parseInt(req.query.page || "0", 10), 0);
+    const limit  = Math.min(Math.max(parseInt(req.query.limit || "12", 10), 1), 48);
+    const offset = page * limit;
+
+    let q = client
       .from("memes")
       .select("id, handle, img_url, created_at")
       .order("created_at", { ascending: false })
-      .limit(300);
+      .range(offset, offset + limit - 1);
 
-    if (handle) {
-      query = query.eq("handle", handle);
-    }
+    if (handle) q = q.eq("handle", handle);
 
-    const { data, error } = await query;
+    const { data, error, count } = await q;
     if (error) throw error;
 
-    // keep your random shuffle
-    const rows = [...(data || [])];
-    for (let i = rows.length - 1; i > 0; i--) {
-      const j = (Math.random() * (i + 1)) | 0;
-      [rows[i], rows[j]] = [rows[j], rows[i]];
+    // quick "has_more": ask one extra row
+    let has_more = false;
+    {
+      let q2 = client
+        .from("memes")
+        .select("id", { count: "exact", head: true })
+        .order("created_at", { ascending: false });
+
+      if (handle) q2 = q2.eq("handle", handle);
+
+      const { count: total } = await q2;
+      has_more = total ? (offset + limit) < total : false;
     }
 
-    res.setHeader("Cache-Control", "s-maxage=30, stale-while-revalidate=300");
-    return res.status(200).json(rows);
+    res.setHeader("Cache-Control", "s-maxage=15, stale-while-revalidate=120");
+    return res.status(200).json({ items: data || [], has_more });
   } catch (e) {
     return res.status(500).json({ error: e.message || "Server error" });
   }
