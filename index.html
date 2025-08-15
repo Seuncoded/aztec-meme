@@ -14,32 +14,34 @@
     <h1>Aztec Meme Gallery</h1>
     <p class="lead">Welcome to the Aztec Meme Wall — drop your meme (link or upload) + @handle</p>
 
-<form id="form" class="controls" autocomplete="off">
-  <input id="handle" type="text" placeholder="@handle" />
-  <input id="imgUrl" type="url" placeholder="https://…image.jpg/png/gif/webp" />
-  <button id="submitBtn" type="submit">Submit</button>
-</form>
+    <!-- Link submit -->
+    <form id="form" class="controls" autocomplete="off">
+      <input id="handle" type="text" placeholder="@handle" />
+      <input id="imgUrl" type="url" placeholder="https://…image.jpg/png/gif/webp" />
+      <button id="submitBtn" type="submit">Submit</button>
+    </form>
 
-<form id="uploadForm" class="controls upload" autocomplete="off">
-  <input id="uploadHandle" type="text" placeholder="@handle" />
-  <input id="file" type="file" accept="image/*" />
-  <button id="uploadBtn" type="submit">Upload Meme</button>
-</form>
+    <!-- Upload submit -->
+    <form id="uploadForm" class="controls upload" autocomplete="off">
+      <input id="uploadHandle" type="text" placeholder="@handle" />
+      <input id="uploadFile" type="file" accept="image/*" />
+      <button id="uploadBtn" type="submit">Upload Meme</button>
+    </form>
 
+    <div id="uploadMsg" class="msg"></div>
 
-<div id="uploadMsg" class="msg"></div>
+    <div id="preview" style="display:none; margin-top:8px">
+      <img id="previewImg" alt="preview" style="max-width:220px; border-radius:10px; border:1px solid #22305d;">
+    </div>
 
-
-<div id="preview" style="display:none; margin-top:8px">
-  <img id="previewImg" alt="preview" style="max-width:220px; border-radius:10px; border:1px solid #22305d;">
-</div>
     <div id="msg" class="msg"></div>
 
     <section id="grid" class="grid" aria-live="polite"></section>
   </div>
 
   <a class="credit" href="https://x.com/seuncoded" target="_blank" rel="noopener">Built by @seuncoded</a>
-<div id="toast" class="toast" aria-live="polite" aria-atomic="true"></div>
+  <div id="toast" class="toast" aria-live="polite" aria-atomic="true"></div>
+
   <script src="app.js" defer></script>
 </body>
 </html>
