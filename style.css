@@ -1,70 +1,111 @@
-/* --- Masonry container --- */
-#grid{
-  /* Masonry via CSS columns */
-  column-width: 240px;      /* target column width */
-  column-gap: 16px;         /* space between columns */
-  max-width: 1200px;
-  margin: 18px auto 80px;
-  padding: 0 14px;
+:root{
+  --bg0:#0b0f16; --bg1:#101628; --ink:#e7eaff; --muted:#97a0c9; --brand:#6f6ce8;
+  --card:#121b32; --card2:#0c1429; --ring:#22305d;
 }
+*{ box-sizing:border-box }
+html,body{ height:100%; margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial; background: radial-gradient(1100px 700px at 0% -20%, #132242 0%, var(--bg0) 45%),radial-gradient(900px 600px at 120% 120%, #1a2450 0%, transparent 60%),var(--bg0); color:var(--ink) }
 
-/* Smaller screens: a bit narrower columns */
-@media (max-width: 900px){
-  #grid{ column-width: 210px; column-gap: 14px; }
-}
-@media (max-width: 640px){
-  #grid{ column-width: 170px; column-gap: 12px; padding: 0 10px; }
-}
+.wrap{ max-width:1100px; margin:34px auto 120px; padding:0 16px; text-align:center }
+h1{ margin:0 0 8px; font-size:48px; font-weight:900; letter-spacing:.3px; background:linear-gradient(90deg,#8e2de2,#4a00e0); -webkit-background-clip:text; -webkit-text-fill-color:transparent }
+.lead{ margin:0 0 18px; color:var(--muted) }
 
-/* --- Cards --- */
+.controls{ display:flex; gap:10px; justify-content:center; margin:10px auto 6px; }
+.controls input{ flex:1; max-width:420px; padding:12px 14px; border-radius:12px; background:#f3f4fb; color:#161a3a; border:1px solid #e6e8f3; font-size:15px; outline:none }
+.controls button{ padding:11px 16px; border-radius:12px; cursor:pointer; border:1px solid transparent; background:linear-gradient(180deg,#7c79ff,var(--brand)); color:#fff; font-weight:800; letter-spacing:.2px; box-shadow:0 8px 18px rgba(111,108,232,.25) }
+.controls button:hover{ filter:brightness(1.06); transform:translateY(-1px) }
+
+.msg{ min-height:18px; font-size:13px; color:#eab676; margin:4px 2px }
+
+.featured{ margin:18px 0 10px; }
+.card{ display:inline-block; background:linear-gradient(180deg,var(--card),var(--card2)); border:1px solid var(--ring); border-radius:16px; overflow:hidden; box-shadow:0 10px 26px rgba(0,0,0,.35) }
+.card .img{ width:100%; height:auto; display:block; }
+.card .cap{ padding:8px 10px; background:#0b1124; color:#dee4ff; font-weight:800 }
+.card .handle{ display:inline-block; padding:4px 8px; background:#0f1a39; border:1px solid #1d2952; border-radius:999px; font-size:12px }
+
+.hidden{ display:none }
+
+.grid{
+  column-count: 1;
+  column-gap: 14px;
+  margin-top: 10px;
+}
+@media (min-width:640px){ .grid{ column-count: 2 } }
+@media (min-width:900px){ .grid{ column-count: 3 } }
+
 .tile{
-  display: inline-block;     /* required for CSS columns */
-  width: 100%;
+  break-inside: avoid;
   margin: 0 0 14px;
-  break-inside: avoid;       /* keep each card intact */
-  border-radius: 14px;
-  overflow: hidden;
-  background: #0f1330;       /* card bg similar to wall */
-  border: 1px solid #1d2340;
-  box-shadow: 0 8px 22px rgba(0,0,0,.35);
-  content-visibility: auto;  /* performance */
+  transform: translateY(20px);
+  opacity: 0;
+  animation: drop .45s ease var(--d,0s) forwards;
+}
+.tile img{ width:100%; border-radius:14px; display:block }
+.tile .meta{ display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:6px }
+.tile .by{ font-size:12px; color:#cfd6ff; font-weight:700 }
+.tile:hover img{ transform: scale(1.02); transition: transform .25s ease }
+
+@keyframes drop{
+  to{ transform: translateY(0); opacity:1 }
 }
 
-/* Image fits width, variable height = masonry look */
-.tile .img{
+.credit{
+  position:fixed; left:50%; transform:translateX(-50%); bottom:12px; background:#101632; color:#cfd6ff;
+  border:1px solid #22305d; padding:7px 10px; border-radius:999px; font-size:12px; font-weight:800; text-decoration:none; box-shadow:0 6px 18px rgba(0,0,0,.35)
+}
+
+.featured {
+  display: block;
+  margin: 0 auto 2rem;
+  max-width: 400px;   /* Desktop size */
+  max-height: 350px;
   width: 100%;
   height: auto;
-  display: block;
-  background: #0c1226;
-  transition: transform .18s ease;
+  border-radius: 10px;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+  object-fit: contain; /* Avoids stretching */
 }
 
-/* subtle hover */
-.tile:hover .img{ transform: scale(1.02); }
-
-/* caption */
-.tile .meta{
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  background: #0b1124;
-  font-size: 12px;
-  color: #cfd6ff;
-}
-.tile .meta .by{
-  font-weight: 800;
-  background:#0f1a39;
-  border:1px solid #1d2952;
-  border-radius: 9px;
-  padding: 4px 8px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .featured {
+    max-width: 90%;   /* Almost full width on mobile */
+    max-height: 250px;
+  }
 }
 
-/* optional tiny drop-in animation like before */
-.tile{ opacity: 0; transform: translateY(8px); animation: drop .35s ease forwards; }
-.tile{ animation-delay: var(--d, 0s); }
-@keyframes drop{ to{ opacity:1; transform:none; } }
+/* Shared form layout */
+.controls{
+  display:grid;
+  grid-template-columns: 1fr 1fr auto; /* two inputs + button on wide screens */
+  gap:12px;
+  align-items:center;
+  margin:14px 0;
+}
+.controls input, .controls button{
+  height:46px;
+  border-radius:12px;
+}
+.controls input{
+  padding:12px 14px;
+  border:1px solid #e6e8f3;
+  background:#f3f4fb;
+  font-size:15px;
+}
+.controls button{
+  padding:0 18px;
+  font-weight:800;
+  background:linear-gradient(180deg, #7c79ff, #6f6ce8);
+  color:#fff;
+  border:0;
+  box-shadow:0 8px 18px rgba(111,108,232,.25);
+  cursor:pointer;
+}
+
+/* Upload row looks the same; keep spacing consistent */
+.controls.upload{ margin-top:10px; }
+
+/* Mobile: stack everything, full width buttons */
+@media (max-width: 640px){
+  .controls{ grid-template-columns: 1fr; }
+  .controls button{ width:100%; height:48px; }
+}
