@@ -198,3 +198,43 @@ input, button { font-size: 16px; }        /* prevents zoom-on-focus on iOS */
   .controls input, .controls button { font-size: 15px; }
 }
 
+.reactions {
+  display: flex;
+  gap: 8px;
+  margin-top: 5px;
+}
+
+.react-btn {
+  background: rgba(255,255,255,0.1);
+  border: none;
+  border-radius: 20px;
+  padding: 3px 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: white;
+  transition: background 0.2s ease;
+}
+
+.react-btn:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+.reactions {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.rx {
+  background: #0f1a39;
+  border: 1px solid #1d2952;
+  color: #dbe0ff;
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform .12s ease, filter .12s ease;
+}
+.rx:hover { transform: translateY(-1px); filter: brightness(1.1); }
+.rx i { font-style: normal; margin-left: 4px; }

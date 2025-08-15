@@ -18,26 +18,78 @@ function showToast(message, type = 'info', ms = 2600) {
   showToast._t = setTimeout(() => el.classList.remove('show'), ms);
 }
 
+// main.js (or whatever file has tileNode)
+
+// 🔹 Add this near the top, before tileNode
+function countOf(reactions, key) {
+  const v = reactions?.[key];
+  return typeof v === "string" ? (parseInt(v, 10) || 0) : (v || 0);
+}
+
+
 /* ---------- card builder (same size/feel as before) ---------- */
-function tileNode(item, delayIdx = 0){
-  const el = document.createElement('article');
-  el.className = 'tile';
-  el.style.setProperty('--d', `${delayIdx * 0.03}s`);
-  el.innerHTML = `
-    <img class="img"
-      src="${item.img_url}"
-      alt="meme by @${item.handle}"
-      loading="lazy"
-      decoding="async"
-      referrerpolicy="no-referrer"
-      onerror="this.style.display='none'"
-    />
+function tileNode(item, delayIdx){
+  const counts = {
+    like: countOf(item.reactions, "like"),
+    love: countOf(item.reactions, "love"),
+    lol:  countOf(item.reactions, "lol"),
+    fire: countOf(item.reactions, "fire"),
+    wow:  countOf(item.reactions, "wow"),
+  };
+
+  const div = document.createElement('article');
+  div.className = 'tile';
+  div.style.setProperty('--d', `${(delayIdx||0) * 0.03}s`);
+  div.innerHTML = `
+    <img class="img" src="${item.img_url}" alt="meme by @${item.handle}">
     <div class="meta">
       <span class="by">@${item.handle}</span>
-      <span></span>
+      <div class="reactions" data-id="${item.id}">
+        <button class="rx" data-r="like">👍 <i>${counts.like}</i></button>
+        <button class="rx" data-r="love">❤️ <i>${counts.love}</i></button>
+        <button class="rx" data-r="lol">😂 <i>${counts.lol}</i></button>
+        <button class="rx" data-r="fire">🔥 <i>${counts.fire}</i></button>
+        <button class="rx" data-r="wow">😮 <i>${counts.wow}</i></button>
+      </div>
     </div>
   `;
-  return el;
+
+  div.querySelectorAll('.rx').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id  = div.querySelector('.reactions').dataset.id;
+      const key = btn.dataset.r;
+      const iEl = btn.querySelector('i');
+
+      // optimistic bump
+      iEl.textContent = (parseInt(iEl.textContent||'0',10)+1);
+
+      try{
+        const r = await fetch('/api/react', {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify({ memeId: id, reaction: key })
+        });
+        const j = await r.json();
+        if(!r.ok || !j.ok){
+          // rollback
+          iEl.textContent = (parseInt(iEl.textContent||'1',10)-1);
+        }else{
+          const rx = j.reactions || {};
+          div.querySelectorAll('.rx').forEach(b=>{
+            const k = b.dataset.r;
+            const el = b.querySelector('i');
+            const v = typeof rx[k] === 'string' ? parseInt(rx[k],10)||0 : rx[k]||0;
+            el.textContent = v;
+          });
+        }
+      }catch{
+        // rollback on network error
+        iEl.textContent = (parseInt(iEl.textContent||'1',10)-1);
+      }
+    });
+  });
+
+  return div;
 }
 
 /* ---------- data ---------- */
