@@ -51,15 +51,15 @@ function tileNode(item, delayIdx){
   const div = document.createElement('article');
   div.className = 'tile';
   div.style.setProperty('--d', `${(delayIdx||0) * 0.03}s`);
+
+  // build markup
   div.innerHTML = `
-    <img
-      class="img"
-      src="${item.img_url}"
-      alt="meme by @${item.handle}"
-      loading="lazy"
-      referrerpolicy="no-referrer"
-      onerror="this.onerror=null; this.closest('.tile')?.remove();"
-    >
+    <img class="img"
+         src="${item.img_url}"
+         alt="meme by @${item.handle}"
+         loading="lazy"
+         decoding="async"
+         referrerpolicy="no-referrer">
     <div class="meta">
       <span class="by">@${item.handle}</span>
       <div class="reactions" data-id="${item.id}">
@@ -72,6 +72,13 @@ function tileNode(item, delayIdx){
     </div>
   `;
 
+  // 🔴 Critical: if image fails, remove the whole tile
+  const img = div.querySelector('img');
+  img.addEventListener('error', () => {
+    div.remove();
+  }, { once: true });
+
+  // existing reaction wiring
   div.querySelectorAll('.rx').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const id  = div.querySelector('.reactions').dataset.id;
@@ -89,7 +96,6 @@ function tileNode(item, delayIdx){
         });
         const j = await r.json();
         if(!r.ok || !j.ok){
-          // rollback
           iEl.textContent = (parseInt(iEl.textContent||'1',10)-1);
         }else{
           const rx = j.reactions || {};
@@ -101,7 +107,6 @@ function tileNode(item, delayIdx){
           });
         }
       }catch{
-        // rollback on network error
         iEl.textContent = (parseInt(iEl.textContent||'1',10)-1);
       }
     });
