@@ -187,3 +187,37 @@ input, button { font-size: 16px; }        /* prevents zoom-on-focus on iOS */
 @supports (-webkit-touch-callout: none){
   .controls input, .controls button { font-size: 15px; }
 }
+
+/* ===== Match input & button sizes for meme forms ===== */
+.controls input[type="text"],
+.controls input[type="url"],
+.controls input[type="file"],
+.controls button {
+  height: 44px;           /* uniform height */
+  font-size: 14px;        /* same font size */
+  padding: 0 12px;
+  box-sizing: border-box;
+}
+
+/* Make the file input look like the text fields */
+.controls input[type="file"] {
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  color: #555;
+  cursor: pointer;
+}
+
+/* Ensure both inputs in each row share the available width evenly */
+.controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto; /* two inputs + button */
+  gap: 8px;
+}
+
+/* On mobile, stack them nicely */
+@media (max-width: 640px) {
+  .controls {
+    grid-template-columns: 1fr; /* stack */
+  }
+}
