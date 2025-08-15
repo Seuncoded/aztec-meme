@@ -61,6 +61,69 @@ h1{
 .tile .meta{
   display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:6px;
 }
+:root{
+  --bg0:#0b0f16; --bg1:#101628;
+  --ink:#e7eaff; --muted:#97a0c9; --brand:#6f6ce8;
+  --card:#121b32; --card2:#0c1429; --ring:#22305d;
+}
+
+/* Base */
+*{ box-sizing:border-box }
+html,body{
+  height:100%; margin:0;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial;
+  background:
+    radial-gradient(1100px 700px at 0% -20%, #132242 0%, var(--bg0) 45%),
+    radial-gradient(900px 600px at 120% 120%, #1a2450 0%, transparent 60%),
+    var(--bg0);
+  color:var(--ink);
+}
+
+/* Header + container */
+.wrap{ max-width:1100px; margin:34px auto 120px; padding:0 16px; text-align:center }
+h1{
+  margin:0 0 8px; font-size:48px; font-weight:900; letter-spacing:.3px;
+  background:linear-gradient(90deg,#8e2de2,#4a00e0);
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+}
+.lead{ margin:0 0 18px; color:var(--muted) }
+
+/* Inline message (hidden in favor of toast) */
+.msg{ min-height:18px; font-size:13px; color:#eab676; margin:4px 2px; display:none !important; }
+
+/* Featured (if you use it later) */
+.featured{
+  display:block; margin:18px auto 2rem;
+  max-width:400px; max-height:350px; width:100%; height:auto;
+  border-radius:10px; box-shadow:0 0 20px rgba(255,255,255,.2);
+  object-fit:contain;
+}
+@media (max-width:768px){
+  .featured{ max-width:90%; max-height:250px; }
+}
+
+/* Pinterest masonry grid */
+.grid{
+  column-count:1; column-gap:14px; margin-top:10px;
+}
+@media (min-width:640px){ .grid{ column-count:2 } }
+@media (min-width:900px){ .grid{ column-count:3 } }
+
+/* Tiles */
+.tile{
+  break-inside:avoid; margin:0 0 14px;
+  transform:translateY(20px); opacity:0;
+  animation:drop .45s ease var(--d,0s) forwards;
+  content-visibility:auto;
+}
+.tile img{
+  width:100%; display:block; border-radius:14px; background:#0c1226;
+  transition:transform .25s ease;
+}
+.tile:hover img{ transform:scale(1.02) }
+.tile .meta{
+  display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:6px;
+}
 .tile .by{ font-size:12px; color:#cfd6ff; font-weight:700 }
 
 @keyframes drop{ to{ transform:translateY(0); opacity:1 } }
@@ -181,3 +244,104 @@ input, button { font-size:16px; }
   transform: translateY(-1px) scale(1.05);
   box-shadow: 0 2px 6px rgba(0,0,0,0.2);
 }
+
+@keyframes drop{ to{ transform:translateY(0); opacity:1 } }
+
+/* Card (shared) */
+.card{
+  display:inline-block; background:linear-gradient(180deg,var(--card),var(--card2));
+  border:1px solid var(--ring); border-radius:16px; overflow:hidden;
+  box-shadow:0 10px 26px rgba(0,0,0,.35);
+}
+.card .img{ width:100%; height:auto; display:block }
+.card .cap{ padding:8px 10px; background:#0b1124; color:#dee4ff; font-weight:800 }
+.card .handle{
+  display:inline-block; padding:4px 8px; background:#0f1a39; border:1px solid #1d2952;
+  border-radius:999px; font-size:12px;
+}
+
+/* Forms (desktop/tablet) */
+.controls{
+  display:grid; grid-template-columns: 1fr 1fr auto; gap:12px; align-items:center; margin:14px 0;
+}
+.controls input, .controls button{
+  height:46px; border-radius:12px;
+}
+.controls input{
+  padding:12px 14px; border:1px solid #e6e8f3; background:#f3f4fb; font-size:15px; color:#161a3a; outline:none;
+}
+.controls button{
+  padding:0 18px; font-weight:800; background:linear-gradient(180deg,#7c79ff,var(--brand));
+  color:#fff; border:0; box-shadow:0 8px 18px rgba(111,108,232,.25); cursor:pointer;
+}
+.controls button:hover{ filter:brightness(1.06); transform:translateY(-1px) }
+.controls.upload{ margin-top:10px; }
+
+/* Toast notifications */
+.toast{
+  position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(20px);
+  min-width:220px; max-width:90vw; padding:12px 16px; border-radius:12px;
+  font-weight:700; font-size:14px; color:#0f1330; background:#e8f5ff; border:1px solid #cfe9ff;
+  box-shadow:0 10px 24px rgba(0,0,0,.25); opacity:0; pointer-events:none;
+  transition:opacity .25s ease, transform .25s ease; z-index:9999;
+}
+.toast.show{ opacity:1; transform:translateX(-50%) translateY(0); pointer-events:auto }
+.toast.success{ background:#e6fff3; border-color:#c8f7e1; color:#064e3b }
+.toast.error{   background:#ffecec; border-color:#ffd0d0; color:#7f1d1d }
+.toast.warn{    background:#fff8e6; border-color:#ffe7b8; color:#663c00 }
+
+/* Credit */
+.credit{
+  position:fixed; left:50%; transform:translateX(-50%); bottom:12px; background:#101632; color:#cfd6ff;
+  border:1px solid #22305d; padding:7px 10px; border-radius:999px; font-size:12px; font-weight:800;
+  text-decoration:none; box-shadow:0 6px 18px rgba(0,0,0,.35);
+}
+
+/* ===== Compact forms on mobile ===== */
+@media (max-width: 640px){
+  .wrap{ margin:22px auto 90px; }
+  h1{ font-size:36px; line-height:1.05; margin-bottom:6px; }
+  .lead{ font-size:14px; margin-bottom:10px; }
+
+  /* stack the form neatly */
+  .controls{
+    grid-template-columns: 1fr;  /* stack */
+    gap: 8px;
+    margin: 10px 0 8px;
+  }
+
+  /* make inputs & buttons same height/size */
+  .controls input[type="text"],
+  .controls input[type="url"],
+  .controls input[type="file"],
+  .controls button{
+    height: 44px;
+    font-size: 14px;
+    padding: 0 12px;
+    box-sizing: border-box;
+    width: 100%; /* buttons expand full width */
+  }
+
+  /* file input look consistent */
+  .controls input[type="file"]{
+    background:#fff;
+    border:1px solid #ccc;
+    border-radius:8px;
+    color:#555;
+    cursor:pointer;
+    padding: 10px 12px;
+    height: auto; /* let native control decide exact height */
+  }
+
+  .controls.upload{ margin-top:8px; }
+
+  /* tiny inline message (kept hidden by default above) */
+  .msg{ font-size:12px; margin:2px 0 6px; }
+}
+
+/* Prevent iOS zoom-on-focus & keep fonts consistent */
+input, button { font-size:16px; }
+@supports (-webkit-touch-callout: none){
+  .controls input, .controls button { font-size:15px; }
+}
+
