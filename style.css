@@ -211,3 +211,27 @@ input, button { font-size:16px; }
   0%   { background-position: 100% 0; }
   100% { background-position: 0 0; }
 }
+
+/* smooth filter transitions */
+.grid.fade-out { opacity: .2; filter: blur(1px); transition: opacity .18s, filter .18s; }
+.grid.fade-in  { animation: fadeIn .25s ease; }
+@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+
+/* clickable @handle chip (matches your markup) */
+.by {
+  background: linear-gradient(135deg, #6f6ce8, #9d9bff);
+  color: #fff !important;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 12px;
+  border: none;
+  cursor: pointer;
+  text-shadow: 0 1px 1px rgba(0,0,0,0.3);
+  transition: all 0.25s ease;
+}
+.by:hover {
+  background: linear-gradient(135deg, #5a57d9, #8381ff);
+  transform: translateY(-1px) scale(1.05);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
