@@ -20,18 +20,6 @@ function tileNode(item, delayIdx){
   return div;
 }
 
-function featuredNode(item){
-  const w = Math.min(860, window.innerWidth - 40);
-  const div = document.createElement('div');
-  div.className = 'card';
-  div.style.width = `${w}px`;
-  div.innerHTML = `
-    <img class="img" src="${item.img_url}" alt="featured meme by @${item.handle}">
-    <div class="cap"><span class="handle">@${item.handle}</span></div>
-  `;
-  return div;
-}
-
 async function listMemes(){
   const r = await fetch('/api/memes', { cache:'no-store' });
   if (!r.ok) throw new Error('memes list failed');
