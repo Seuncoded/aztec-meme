@@ -1,100 +1,95 @@
-const $ = s => document.querySelector(s);
-const masonry = $("#masonry");
-const featuredBox = $("#featured");
-const msg = $("#msg");
+const $ = (sel, root=document) => root.querySelector(sel);
+const $$ = (sel, root=document) => [...root.querySelectorAll(sel)];
 
-function cardHTML(m){
-  const handle = m.handle ? '@' + m.handle : '';
-  const delay = (Math.random() * 350) | 0; // stagger drop
-  return `
-    <article class="tile" style="animation-delay:${delay}ms">
-      <img src="${m.img_url}" alt="${handle} meme" loading="lazy" decoding="async">
-      <div class="meta">
-        <span class="handle">${handle}</span>
-        <time datetime="${m.created_at}">${new Date(m.created_at).toLocaleDateString()}</time>
-      </div>
-    </article>
+const grid = $('#grid');
+const featuredCard = $('#featuredCard');
+const msg = $('#msg');
+const btn = $('#submitBtn');
+
+function tileNode(item, delayIdx){
+  const div = document.createElement('article');
+  div.className = 'tile';
+  div.style.setProperty('--d', `${(delayIdx||0) * 0.03}s`);
+  div.innerHTML = `
+    <img class="img" src="${item.img_url}" alt="meme by @${item.handle}">
+    <div class="meta">
+      <span class="by">@${item.handle}</span>
+      <span></span>
+    </div>
   `;
+  return div;
 }
 
-function pickFeatured(arr){
-  if (!arr.length) return null;
-  const i = (Math.random() * arr.length) | 0;
-  return arr[i];
+function featuredNode(item){
+  const w = Math.min(860, window.innerWidth - 40);
+  const div = document.createElement('div');
+  div.className = 'card';
+  div.style.width = `${w}px`;
+  div.innerHTML = `
+    <img class="img" src="${item.img_url}" alt="featured meme by @${item.handle}">
+    <div class="cap"><span class="handle">@${item.handle}</span></div>
+  `;
+  return div;
 }
 
-async function loadMemes({ offset=0, limit=80 } = {}){
-  const r = await fetch(`/api/memes?offset=${offset}&limit=${limit}`);
-  if (!r.ok) throw new Error("memes load failed");
+async function listMemes(){
+  const r = await fetch('/api/memes', { cache:'no-store' });
+  if (!r.ok) throw new Error('memes list failed');
   return r.json();
 }
 
 async function render(){
-  msg.textContent = "";
-  try{
-    const data = await loadMemes({ offset:0, limit:100 });
-
-    if (!Array.isArray(data) || !data.length){
-      featuredBox.innerHTML = "";
-      masonry.innerHTML = `<div style="color:#c8cff9;padding:20px">No memes yet. Be the first!</div>`;
+  try {
+    msg.textContent = '';
+    const memes = await listMemes();
+    if (!Array.isArray(memes) || !memes.length){
+      grid.innerHTML = '<div style="color:#c8cff9;padding:20px">No memes yet. Be the first!</div>';
+      featuredCard.classList.add('hidden');
       return;
     }
 
-    // Featured
-    const featured = pickFeatured(data);
-    featuredBox.innerHTML = `
-      <div class="card">
-        <img src="${featured.img_url}" alt="@${featured.handle} featured meme">
-        <div class="meta">
-          <span>🎯 Featured</span>
-          <span class="handle">@${featured.handle}</span>
-          <span style="opacity:.8">${new Date(featured.created_at).toLocaleString()}</span>
-        </div>
-      </div>
-    `;
+    // Featured: random one at top
+    const pick = memes[(Math.random() * memes.length) | 0];
+    featuredCard.replaceChildren(featuredNode(pick));
+    featuredCard.classList.remove('hidden');
 
-    // Grid (shuffle client-side for variety)
-    const rest = data.slice();
-    // Fisher–Yates
-    for(let i = rest.length - 1; i > 0; i--){
-      const j = (Math.random() * (i + 1)) | 0;
-      [rest[i], rest[j]] = [rest[j], rest[i]];
-    }
-    masonry.innerHTML = rest.map(cardHTML).join("");
-
-  }catch(e){
-    msg.textContent = "Failed to load memes.";
+    // Grid
+    grid.innerHTML = '';
+    const frag = document.createDocumentFragment();
+    memes.forEach((m, i) => frag.appendChild(tileNode(m, i)));
+    grid.appendChild(frag);
+  } catch (e) {
+    msg.textContent = 'Failed to load memes.';
   }
 }
 
-$("#form")?.addEventListener("submit", async (e)=>{
+// submit handler
+$('#form').addEventListener('submit', async (e)=>{
   e.preventDefault();
-  const rawHandle = $("#handle").value;
-  const imgUrl = $("#imgUrl").value.trim();
-  const btn = $("#submitBtn");
-
+  const rawHandle = $('#handle').value;
+  const imgUrl = $('#imgUrl').value.trim();
   if (!rawHandle || !imgUrl) return;
 
-  btn.disabled = true; btn.textContent = "Submitting…"; msg.textContent = "";
+  btn.disabled = true; btn.textContent = 'Submitting…'; msg.textContent = '';
 
   try {
-    const r = await fetch("/api/submit-meme", {
-      method: "POST",
-      headers: { "Content-Type":"application/json" },
+    const r = await fetch('/api/submit-meme', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
       body: JSON.stringify({ handle: rawHandle, imgUrl })
     });
     const j = await r.json();
-    if (!r.ok || !j.ok) {
-      msg.textContent = j?.error || "Could not submit meme";
+    if (!r.ok || !j.ok){
+      msg.textContent = j?.error || 'Network error';
     } else {
-      $("#form").reset();
+      $('#form').reset();
       await render();
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   } catch {
-    msg.textContent = "Network error";
+    msg.textContent = 'Network error';
   } finally {
-    btn.disabled = false; btn.textContent = "Submit";
+    btn.disabled = false; btn.textContent = 'Submit';
   }
 });
 
