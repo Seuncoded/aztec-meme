@@ -20,44 +20,20 @@ function showToast(message, type = 'info', ms = 2600) {
   showToast._t = setTimeout(() => el.classList.remove('show'), ms);
 }
 
-// normalize reaction counts safely
-function countOf(reactions, key) {
-  const v = reactions?.[key];
-  return typeof v === "string" ? (parseInt(v, 10) || 0) : (v || 0);
-}
 
 // ===== UI builders =====
+/* ---------- card builder (no reactions) ---------- */
 function tileNode(item, delayIdx){
-  const reactions = item.reactions || {};
-  const counts = {
-    like: countOf(reactions, "like"),
-    love: countOf(reactions, "love"),
-    lol:  countOf(reactions, "lol"),
-    fire: countOf(reactions, "fire"),
-    wow:  countOf(reactions, "wow"),
-  };
-
   const div = document.createElement('article');
   div.className = 'tile';
   div.style.setProperty('--d', `${(delayIdx||0) * 0.03}s`);
   div.innerHTML = `
-    <img class="img"
-         src="${item.img_url}"
-         alt="meme by @${item.handle}"
-         loading="lazy"
-         decoding="async"
-         onerror="this.style.display='none'; this.closest('.tile').style.minHeight='0';" />
+    <img class="img" src="${item.img_url}" alt="meme by @${item.handle}">
     <div class="meta">
       <span class="by">@${item.handle}</span>
-      <div class="reactions" data-id="${item.id}">
-        <button class="rx" data-r="like">👍 <i>${counts.like}</i></button>
-        <button class="rx" data-r="love">❤️ <i>${counts.love}</i></button>
-        <button class="rx" data-r="lol">😂 <i>${counts.lol}</i></button>
-        <button class="rx" data-r="fire">🔥 <i>${counts.fire}</i></button>
-        <button class="rx" data-r="wow">😮 <i>${counts.wow}</i></button>
-      </div>
     </div>
   `;
+  r
   return div;
 }
 

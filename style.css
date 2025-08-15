@@ -95,18 +95,6 @@ h1{
 .controls button:hover{ filter:brightness(1.06); transform:translateY(-1px) }
 .controls.upload{ margin-top:10px; }
 
-/* Reactions */
-.reactions{
-  display:inline-flex; gap:8px; align-items:center; margin-top:5px;
-}
-.rx{
-  background:#0f1a39; border:1px solid #1d2952; color:#dbe0ff;
-  border-radius:999px; padding:4px 8px; font-size:12px; font-weight:800; cursor:pointer;
-  transition: transform .12s ease, filter .12s ease;
-}
-.rx:hover{ transform:translateY(-1px); filter:brightness(1.1) }
-.rx i{ font-style:normal; margin-left:4px }
-
 /* Toast notifications */
 .toast{
   position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(20px);
