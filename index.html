@@ -12,17 +12,19 @@
     <h1>Aztec Meme Gallery</h1>
     <p class="lead">Drop your meme URL + @handle. New random feature every load.</p>
 
-    <form id="form" class="controls" autocomplete="off">
-      <input id="handle" type="text" placeholder="@handle" />
-      <input id="imgUrl" type="url" placeholder="https://…image.jpg/png/gif/webp" />
-      <button id="submitBtn" type="submit">Submit</button>
-    </form>
+<form id="form" class="controls" autocomplete="off">
+  <input id="handle" type="text" placeholder="@handle" />
+  <input id="imgUrl" type="url" placeholder="https://…image.jpg/png/gif/webp" />
+  <button id="submitBtn" type="submit">Submit</button>
+</form>
 
-<form id="uploadForm" class="controls" autocomplete="off" style="margin-top:14px; flex-wrap:wrap">
-  <input id="uploadHandle" type="text" placeholder="@handle" style="flex:1; min-width:180px" />
-  <input id="uploadFile" type="file" accept="image/*" style="flex:1; min-width:220px" />
+<form id="uploadForm" class="controls upload" autocomplete="off">
+  <input id="uploadHandle" type="text" placeholder="@handle" />
+  <input id="file" type="file" accept="image/*" />
   <button id="uploadBtn" type="submit">Upload Meme</button>
 </form>
+
+
 <div id="uploadMsg" class="msg"></div>
 
 

@@ -1,74 +1,139 @@
 :root{
-  --bg0:#0b0f16; --bg1:#101628; --ink:#e7eaff; --muted:#97a0c9; --brand:#6f6ce8;
-  --card:#121b32; --card2:#0c1429; --ring:#22305d;
+  --ink:#e6e9ff;
+  --muted:#a7b0d9;
+  --bg:#0b0f16;
+  --card:#11172d;
+  --aztec:#6f6ce8;
+  --border:#1c2440;
+  --shadow:0 10px 26px rgba(0,0,0,.35);
 }
-*{ box-sizing:border-box }
-html,body{ height:100%; margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial; background: radial-gradient(1100px 700px at 0% -20%, #132242 0%, var(--bg0) 45%),radial-gradient(900px 600px at 120% 120%, #1a2450 0%, transparent 60%),var(--bg0); color:var(--ink) }
 
-.wrap{ max-width:1100px; margin:34px auto 120px; padding:0 16px; text-align:center }
-h1{ margin:0 0 8px; font-size:48px; font-weight:900; letter-spacing:.3px; background:linear-gradient(90deg,#8e2de2,#4a00e0); -webkit-background-clip:text; -webkit-text-fill-color:transparent }
-.lead{ margin:0 0 18px; color:var(--muted) }
+/* Page */
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial;
+  color:var(--ink);
+  background:
+    radial-gradient(1100px 700px at 0% -20%, #132242 0%, transparent 55%),
+    radial-gradient(900px 600px at 120% 120%, #1a2450 0%, transparent 60%),
+    var(--bg);
+}
 
-.controls{ display:flex; gap:10px; justify-content:center; margin:10px auto 6px; }
-.controls input{ flex:1; max-width:420px; padding:12px 14px; border-radius:12px; background:#f3f4fb; color:#161a3a; border:1px solid #e6e8f3; font-size:15px; outline:none }
-.controls button{ padding:11px 16px; border-radius:12px; cursor:pointer; border:1px solid transparent; background:linear-gradient(180deg,#7c79ff,var(--brand)); color:#fff; font-weight:800; letter-spacing:.2px; box-shadow:0 8px 18px rgba(111,108,232,.25) }
+.wrap{
+  max-width:1100px;
+  margin:26px auto 80px;
+  padding:0 16px;
+  text-align:center;
+}
+
+/* Title */
+h1{
+  margin:0 0 12px;
+  font-size:48px;
+  font-weight:900;
+  letter-spacing:.3px;
+  background:linear-gradient(90deg, #8e2de2, #4a00e0);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+}
+.lead{
+  margin:0 0 18px;
+  color:var(--muted);
+  font-weight:600;
+}
+
+/* ---------- Responsive form rows ---------- */
+.controls{
+  display:grid;
+  grid-template-columns: 1fr 1fr auto; /* two inputs + button on desktop */
+  gap:12px;
+  align-items:center;
+  margin:14px 0;
+}
+.controls input, .controls button{
+  height:46px;
+  border-radius:12px;
+}
+
+.controls input{
+  padding:12px 14px;
+  border:1px solid #e6e8f3;
+  background:#f3f4fb;
+  color:#0f1330;
+  font-size:15px;
+  outline:none;
+}
+.controls button{
+  padding:0 18px;
+  font-weight:800;
+  letter-spacing:.2px;
+  border:0;
+  background:linear-gradient(180deg, #7c79ff, var(--aztec));
+  color:#fff;
+  cursor:pointer;
+  box-shadow:0 8px 18px rgba(111,108,232,.25);
+  transition:transform .15s ease, filter .15s ease;
+}
 .controls button:hover{ filter:brightness(1.06); transform:translateY(-1px) }
 
-.msg{ min-height:18px; font-size:13px; color:#eab676; margin:4px 2px }
-
-.featured{ margin:18px 0 10px; }
-.card{ display:inline-block; background:linear-gradient(180deg,var(--card),var(--card2)); border:1px solid var(--ring); border-radius:16px; overflow:hidden; box-shadow:0 10px 26px rgba(0,0,0,.35) }
-.card .img{ width:100%; height:auto; display:block; }
-.card .cap{ padding:8px 10px; background:#0b1124; color:#dee4ff; font-weight:800 }
-.card .handle{ display:inline-block; padding:4px 8px; background:#0f1a39; border:1px solid #1d2952; border-radius:999px; font-size:12px }
-
-.hidden{ display:none }
-
-.grid{
-  column-count: 1;
-  column-gap: 14px;
-  margin-top: 10px;
-}
-@media (min-width:640px){ .grid{ column-count: 2 } }
-@media (min-width:900px){ .grid{ column-count: 3 } }
-
-.tile{
-  break-inside: avoid;
-  margin: 0 0 14px;
-  transform: translateY(20px);
-  opacity: 0;
-  animation: drop .45s ease var(--d,0s) forwards;
-}
-.tile img{ width:100%; border-radius:14px; display:block }
-.tile .meta{ display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:6px }
-.tile .by{ font-size:12px; color:#cfd6ff; font-weight:700 }
-.tile:hover img{ transform: scale(1.02); transition: transform .25s ease }
-
-@keyframes drop{
-  to{ transform: translateY(0); opacity:1 }
+@media (max-width: 640px){
+  .controls{ grid-template-columns: 1fr; }
+  .controls button{ width:100%; height:48px; }
 }
 
-.credit{
-  position:fixed; left:50%; transform:translateX(-50%); bottom:12px; background:#101632; color:#cfd6ff;
-  border:1px solid #22305d; padding:7px 10px; border-radius:999px; font-size:12px; font-weight:800; text-decoration:none; box-shadow:0 6px 18px rgba(0,0,0,.35)
+/* Status line */
+#msg{ min-height:18px; font-size:13px; color:#f2c28b; margin:6px 2px }
+
+/* ---------- Grid of memes ---------- */
+#wall{
+  margin-top:16px;
+  display:grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px,1fr));
+  gap:14px;
 }
 
-.featured {
-  display: block;
-  margin: 0 auto 2rem;
-  max-width: 400px;   /* Desktop size */
-  max-height: 350px;
-  width: 100%;
-  height: auto;
-  border-radius: 10px;
-  box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
-  object-fit: contain; /* Avoids stretching */
+/* Cards — performance & look */
+.card{
+  position:relative;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:14px;
+  box-shadow:var(--shadow);
+  overflow:hidden;
+
+  /* performance: skip off‑screen work */
+  content-visibility:auto;
+  contain-intrinsic-size: 300px 340px; /* reserve space to avoid jumps */
 }
 
-/* Mobile adjustments */
-@media (max-width: 768px) {
-  .featured {
-    max-width: 90%;   /* Almost full width on mobile */
-    max-height: 250px;
-  }
+.card .img{
+  width:100%;
+  height:auto;
+  display:block;
+  background:#0c1226;
+}
+
+.cap{
+  position:absolute;
+  left:8px; bottom:8px;
+  right:8px;
+  display:flex;
+  justify-content:flex-start;
+}
+.handle{
+  display:inline-block;
+  font-weight:900;
+  padding:6px 10px;
+  background:#0f1a39;
+  border:1px solid #1d2952;
+  border-radius:10px;
+  color:#dbe0ff;
+  font-size:12px;
+}
+
+/* Accessibility: reduce motion users still fine */
+@media (prefers-reduced-motion: reduce){
+  .controls button{ transition:none }
 }
