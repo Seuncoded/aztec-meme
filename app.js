@@ -6,7 +6,7 @@ const grid = $('#grid');
 const msg  = $('#msg');
 const btn  = $('#submitBtn');
 
-/* ---------- card builder ---------- */
+/* ---------- card builder (same size/feel as before) ---------- */
 function tileNode(item, delayIdx = 0){
   const el = document.createElement('article');
   el.className = 'tile';
@@ -17,8 +17,6 @@ function tileNode(item, delayIdx = 0){
       alt="meme by @${item.handle}"
       loading="lazy"
       decoding="async"
-      fetchpriority="low"
-      sizes="(max-width:640px) 100vw, (max-width:1024px) 33vw, 300px"
       referrerpolicy="no-referrer"
       onerror="this.style.display='none'"
     />
@@ -37,7 +35,7 @@ async function listMemes(){
   return r.json();
 }
 
-/* ---------- render (progressive) ---------- */
+/* ---------- render (all at once, like before) ---------- */
 async function render(){
   if (!grid) return;
   try {
@@ -50,34 +48,9 @@ async function render(){
     }
 
     grid.innerHTML = '';
-    let i = 0;
-    const CHUNK = 24;
-
-    const addSome = (n) => {
-      const frag = document.createDocumentFragment();
-      for (let k = 0; k < n && i < memes.length; k++, i++){
-        frag.appendChild(tileNode(memes[i], i));
-      }
-      grid.appendChild(frag);
-    };
-
-    // first paint
-    addSome(CHUNK);
-
-    // sentinel for progressive loading
-    const sentinel = document.createElement('div');
-    sentinel.style.height = '1px';
-    grid.appendChild(sentinel);
-
-    const io = new IntersectionObserver((entries)=>{
-      if (entries[0].isIntersecting){
-        addSome(CHUNK);
-        if (i >= memes.length) io.disconnect();
-      }
-    }, { rootMargin: '1200px 0px' });
-
-    io.observe(sentinel);
-
+    const frag = document.createDocumentFragment();
+    memes.forEach((m, i) => frag.appendChild(tileNode(m, i)));
+    grid.appendChild(frag);
   } catch (e){
     msg && (msg.textContent = 'Failed to load memes.');
   }
@@ -143,7 +116,6 @@ uploadForm?.addEventListener('submit', async (e) => {
   const file = uploadFile?.files?.[0];
   if (!file){ if (uploadMsg) uploadMsg.textContent = 'Choose an image'; return; }
 
-  // -> dataURL
   const dataUrl = await new Promise((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(r.result);
