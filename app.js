@@ -66,11 +66,11 @@ function tileNode(item, delayIdx){
   div.style.setProperty('--d', `${(delayIdx||0) * 0.03}s`);
   div.innerHTML = `
     <img class="img" src="${item.img_url}" alt="meme by @${item.handle}" loading="lazy" decoding="async">
-    <div class="meta">
-      <button class="by" data-h="${item.handle}" title="See all by @${item.handle}" style="
-        background:none; border:0; color:#cfd6ff; font-weight:700; font-size:12px; cursor:pointer;
-        padding:0; text-decoration:underline;">@${item.handle}</button>
-    </div>
+<div class="meta">
+  <button class="by" data-h="${item.handle}" title="See all by @${item.handle}">
+    @${item.handle}
+  </button>
+</div>
   `;
   return div;
 }
