@@ -133,3 +133,6 @@ h1{
 .toast.success { background:#e6fff3; border-color:#c8f7e1; color:#064e3b; }
 .toast.error   { background:#ffecec; border-color:#ffd0d0; color:#7f1d1d; }
 .toast.warn    { background:#fff8e6; border-color:#ffe7b8; color:#663c00; }
+
+/* Hide the old inline message bar permanently */
+.msg{ display:none !important; }
