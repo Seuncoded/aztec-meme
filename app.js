@@ -52,7 +52,7 @@ function countOf(reactions, key) {
 
 
 /* ---------- card builder (same size/feel as before) ---------- */
-function tileNode(item, delayIdx, imgSrc){
+function tileNode(item, delayIdx){
   const counts = {
     like: countOf(item.reactions, "like"),
     love: countOf(item.reactions, "love"),
@@ -64,9 +64,11 @@ function tileNode(item, delayIdx, imgSrc){
   const div = document.createElement('article');
   div.className = 'tile';
   div.style.setProperty('--d', `${(delayIdx||0) * 0.03}s`);
+
+  // build markup
   div.innerHTML = `
     <img class="img"
-         src="${imgSrc}"
+         src="${item.img_url}"
          alt="meme by @${item.handle}"
          loading="lazy"
          decoding="async"
@@ -83,17 +85,27 @@ function tileNode(item, delayIdx, imgSrc){
     </div>
   `;
 
-  // wire reactions (same as before) …
+  // 🔴 Critical: if image fails, remove the whole tile
+  const img = div.querySelector('img');
+  img.addEventListener('error', () => {
+    div.remove();
+  }, { once: true });
+
+  // existing reaction wiring
   div.querySelectorAll('.rx').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const id  = div.querySelector('.reactions').dataset.id;
       const key = btn.dataset.r;
       const iEl = btn.querySelector('i');
+
+      // optimistic bump
       iEl.textContent = (parseInt(iEl.textContent||'0',10)+1);
+
       try{
-        const r = await fetch('/api/react',{
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ memeId:id, reaction:key })
+        const r = await fetch('/api/react', {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify({ memeId: id, reaction: key })
         });
         const j = await r.json();
         if(!r.ok || !j.ok){
@@ -101,8 +113,9 @@ function tileNode(item, delayIdx, imgSrc){
         }else{
           const rx = j.reactions || {};
           div.querySelectorAll('.rx').forEach(b=>{
-            const k=b.dataset.r, el=b.querySelector('i');
-            const v = typeof rx[k]==='string' ? (parseInt(rx[k],10)||0) : (rx[k]||0);
+            const k = b.dataset.r;
+            const el = b.querySelector('i');
+            const v = typeof rx[k] === 'string' ? parseInt(rx[k],10)||0 : rx[k]||0;
             el.textContent = v;
           });
         }
@@ -135,17 +148,8 @@ async function render(){
     }
 
     grid.innerHTML = '';
-
-    // preload all images; build tiles only for the ones that loaded
-    const promises = memes.map(async (m, i)=>{
-      const okSrc = await loadImage(m.img_url); // returns string or null
-      if (!okSrc) return null;                  // skip broken/blocked URLs
-      return tileNode(m, i, okSrc);
-    });
-
-    const nodes = await Promise.all(promises);
-    const frag  = document.createDocumentFragment();
-    nodes.forEach(n => { if (n) frag.appendChild(n); });
+    const frag = document.createDocumentFragment();
+    memes.forEach((m, i) => frag.appendChild(tileNode(m, i)));
     grid.appendChild(frag);
   } catch (e){
     msg && (msg.textContent = 'Failed to load memes.');
