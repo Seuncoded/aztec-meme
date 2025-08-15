@@ -1,139 +1,70 @@
-:root{
-  --ink:#e6e9ff;
-  --muted:#a7b0d9;
-  --bg:#0b0f16;
-  --card:#11172d;
-  --aztec:#6f6ce8;
-  --border:#1c2440;
-  --shadow:0 10px 26px rgba(0,0,0,.35);
+/* --- Masonry container --- */
+#grid{
+  /* Masonry via CSS columns */
+  column-width: 240px;      /* target column width */
+  column-gap: 16px;         /* space between columns */
+  max-width: 1200px;
+  margin: 18px auto 80px;
+  padding: 0 14px;
 }
 
-/* Page */
-*{box-sizing:border-box}
-html,body{height:100%}
-body{
-  margin:0;
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial;
-  color:var(--ink);
-  background:
-    radial-gradient(1100px 700px at 0% -20%, #132242 0%, transparent 55%),
-    radial-gradient(900px 600px at 120% 120%, #1a2450 0%, transparent 60%),
-    var(--bg);
+/* Smaller screens: a bit narrower columns */
+@media (max-width: 900px){
+  #grid{ column-width: 210px; column-gap: 14px; }
 }
-
-.wrap{
-  max-width:1100px;
-  margin:26px auto 80px;
-  padding:0 16px;
-  text-align:center;
-}
-
-/* Title */
-h1{
-  margin:0 0 12px;
-  font-size:48px;
-  font-weight:900;
-  letter-spacing:.3px;
-  background:linear-gradient(90deg, #8e2de2, #4a00e0);
-  -webkit-background-clip:text;
-  -webkit-text-fill-color:transparent;
-}
-.lead{
-  margin:0 0 18px;
-  color:var(--muted);
-  font-weight:600;
-}
-
-/* ---------- Responsive form rows ---------- */
-.controls{
-  display:grid;
-  grid-template-columns: 1fr 1fr auto; /* two inputs + button on desktop */
-  gap:12px;
-  align-items:center;
-  margin:14px 0;
-}
-.controls input, .controls button{
-  height:46px;
-  border-radius:12px;
-}
-
-.controls input{
-  padding:12px 14px;
-  border:1px solid #e6e8f3;
-  background:#f3f4fb;
-  color:#0f1330;
-  font-size:15px;
-  outline:none;
-}
-.controls button{
-  padding:0 18px;
-  font-weight:800;
-  letter-spacing:.2px;
-  border:0;
-  background:linear-gradient(180deg, #7c79ff, var(--aztec));
-  color:#fff;
-  cursor:pointer;
-  box-shadow:0 8px 18px rgba(111,108,232,.25);
-  transition:transform .15s ease, filter .15s ease;
-}
-.controls button:hover{ filter:brightness(1.06); transform:translateY(-1px) }
-
 @media (max-width: 640px){
-  .controls{ grid-template-columns: 1fr; }
-  .controls button{ width:100%; height:48px; }
+  #grid{ column-width: 170px; column-gap: 12px; padding: 0 10px; }
 }
 
-/* Status line */
-#msg{ min-height:18px; font-size:13px; color:#f2c28b; margin:6px 2px }
-
-/* ---------- Grid of memes ---------- */
-#wall{
-  margin-top:16px;
-  display:grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px,1fr));
-  gap:14px;
+/* --- Cards --- */
+.tile{
+  display: inline-block;     /* required for CSS columns */
+  width: 100%;
+  margin: 0 0 14px;
+  break-inside: avoid;       /* keep each card intact */
+  border-radius: 14px;
+  overflow: hidden;
+  background: #0f1330;       /* card bg similar to wall */
+  border: 1px solid #1d2340;
+  box-shadow: 0 8px 22px rgba(0,0,0,.35);
+  content-visibility: auto;  /* performance */
 }
 
-/* Cards — performance & look */
-.card{
-  position:relative;
-  background:var(--card);
-  border:1px solid var(--border);
-  border-radius:14px;
-  box-shadow:var(--shadow);
-  overflow:hidden;
-
-  /* performance: skip off‑screen work */
-  content-visibility:auto;
-  contain-intrinsic-size: 300px 340px; /* reserve space to avoid jumps */
+/* Image fits width, variable height = masonry look */
+.tile .img{
+  width: 100%;
+  height: auto;
+  display: block;
+  background: #0c1226;
+  transition: transform .18s ease;
 }
 
-.card .img{
-  width:100%;
-  height:auto;
-  display:block;
-  background:#0c1226;
-}
+/* subtle hover */
+.tile:hover .img{ transform: scale(1.02); }
 
-.cap{
-  position:absolute;
-  left:8px; bottom:8px;
-  right:8px;
-  display:flex;
-  justify-content:flex-start;
+/* caption */
+.tile .meta{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: #0b1124;
+  font-size: 12px;
+  color: #cfd6ff;
 }
-.handle{
-  display:inline-block;
-  font-weight:900;
-  padding:6px 10px;
+.tile .meta .by{
+  font-weight: 800;
   background:#0f1a39;
   border:1px solid #1d2952;
-  border-radius:10px;
-  color:#dbe0ff;
-  font-size:12px;
+  border-radius: 9px;
+  padding: 4px 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Accessibility: reduce motion users still fine */
-@media (prefers-reduced-motion: reduce){
-  .controls button{ transition:none }
-}
+/* optional tiny drop-in animation like before */
+.tile{ opacity: 0; transform: translateY(8px); animation: drop .35s ease forwards; }
+.tile{ animation-delay: var(--d, 0s); }
+@keyframes drop{ to{ opacity:1; transform:none; } }
