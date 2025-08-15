@@ -273,7 +273,7 @@ $('#form')?.addEventListener('submit', async (e)=>{
 
 
 const uploadForm   = $('#uploadForm');
-const uploadFile   = $('#file');
+const uploadFile   = $('#uploadFile');
 const uploadHandle = $('#uploadHandle');
 const uploadBtn    = $('#uploadBtn');
 const uploadMsg    = $('#uploadMsg');
