@@ -5,25 +5,22 @@ const BANNED = ["porn", "pornhub", "xvideos"].map(s => s.toLowerCase());
 const MAX_IMAGE_BYTES = 6 * 1024 * 1024; // 6MB
 
 const startsWithAt = v => typeof v === "string" && v.trim().startsWith("@");
-const cleanHandle = s => s?.trim().replace(/^@+/, "").toLowerCase() || "";
-const validHandle = h => /^[a-z0-9_]{3,30}$/.test(h);
-
-// Safe parse helper
-function tryParseUrl(s = "") {
-  try { return new URL(s.trim()); } catch { return null; }
-}
+const cleanHandle  = s => s?.trim().replace(/^@+/, "").toLowerCase() || "";
+const validHandle  = h => /^[a-z0-9_]{3,30}$/.test(h);
 
 function isImagePathname(pathname = "") {
   return /\.(png|jpe?g|gif|webp|avif)$/i.test(pathname);
 }
-
-// Normalize for storage; DB also lower/trim via img_url_norm
 function normalizeUrl(s = "") {
-  const u = tryParseUrl(s);
-  if (!u) return s.trim();
-  // if it already has an image extension, drop query for stability
-  if (isImagePathname(u.pathname)) u.search = "";
-  return u.toString();
+  const trimmed = s.trim();
+  try {
+    const u = new URL(trimmed);
+    if (isImagePathname(u.pathname)) {
+      u.search = "";                    // strip query noise so duplicates match
+      return u.toString();
+    }
+  } catch {}
+  return trimmed;
 }
 
 export default async function handler(req, res) {
@@ -32,28 +29,26 @@ export default async function handler(req, res) {
   try {
     const { handle: rawHandle, imgUrl } = req.body || {};
 
-    // 1) Handle validation
+    // --- handle validation ---
     if (!startsWithAt(rawHandle)) {
       return res.status(400).json({ error: "Enter your @handle (must start with @)" });
     }
     const handle = cleanHandle(rawHandle);
     if (!handle || !validHandle(handle)) {
-      return res.status(400).json({ error: "Invalid handle (letters/numbers/_ only)" });
+      return res.status(400).json({ error: "Invalid handle (use letters/numbers/_ only)" });
     }
     if (BANNED.some(b => handle.includes(b))) {
       return res.status(400).json({ error: "Handle not allowed" });
     }
 
-    // 2) Image URL validation
+    // --- image url validation ---
     if (typeof imgUrl !== "string" || !imgUrl.trim()) {
       return res.status(400).json({ error: "Image URL is required" });
     }
     const url = normalizeUrl(imgUrl);
-    const parsed = tryParseUrl(url);
-    if (!parsed) return res.status(400).json({ error: "Invalid URL" });
 
-    // If no extension, try HEAD to verify it’s actually an image
-    if (!isImagePathname(parsed.pathname)) {
+    if (!isImagePathname(new URL(url).pathname)) {
+      // as a fallback, HEAD check for image content-type and size
       try {
         const head = await fetch(url, { method: "HEAD" });
         const ct = (head.headers.get("content-type") || "").toLowerCase();
@@ -71,42 +66,29 @@ export default async function handler(req, res) {
 
     const client = sb();
 
-    // 3) Cooldown (60s per handle)
-    const since = new Date(Date.now() - 60_000).toISOString();
-    const { data: recent } = await client
+    // --- duplicate protection (same handle + same image) ---
+    const { data: dup } = await client
       .from("memes")
       .select("id")
       .eq("handle", handle)
-      .gte("created_at", since)
+      .eq("img_url", url)
       .limit(1);
-    if (Array.isArray(recent) && recent.length) {
-      return res.status(429).json({ error: "Please wait a minute before posting again" });
+
+    if (Array.isArray(dup) && dup.length) {
+      return res.status(200).json({ ok: true, meme: dup[0], duplicate: true });
     }
 
-    // 4) Optional pre-check for UX (DB is still the source of truth)
-    const { data: exists } = await client
-      .from("memes")
-      .select("id")
-      .eq("img_url_norm", url.toLowerCase().trim()) // <-- matches generated column
-      .limit(1);
-    if (Array.isArray(exists) && exists.length) {
-      return res.status(409).json({ error: "This image is already on the wall" });
-    }
-
-    // 5) Insert and catch duplicate from DB (race-safe)
+    // --- insert (no cooldown) ---
     const { data, error } = await client
       .from("memes")
-      .insert({ handle, img_url: url, source: "url" })
+      .upsert(
+        { handle, img_url: url, source: "url" },
+        { onConflict: ['handle', 'img_url'], ignoreDuplicates: true }
+      )
       .select()
       .single();
 
-    if (error) {
-      if (error.code === "23505") {
-        // Unique violation from our img_url_norm index
-        return res.status(409).json({ error: "This image is already on the wall" });
-      }
-      throw error;
-    }
+    if (error) throw error;
 
     return res.status(200).json({ ok: true, meme: data });
   } catch (e) {
