@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Aztec Meme Gallery</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#121528" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='12' fill='%236f6ce8'/><rect x='18' y='18' width='28' height='28' rx='6' fill='%23ffffff'/></svg>">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="head">
+    <h1>Aztec Meme Gallery</h1>
+    <p class="sub">Drop your meme URL + @handle. New random feature every load.</p>
+
+    <form id="form" class="form" autocomplete="off">
+      <input id="handle" type="text" placeholder="@handle" required />
+      <input id="imgUrl" type="url" placeholder="Direct image URL (png/jpg/gif/webp)" required />
+      <button type="submit" id="submitBtn">Submit</button>
+    </form>
+
+    <div id="msg" class="msg"></div>
+  </header>
+
+  <section id="featured" class="featured" aria-live="polite"></section>
+
+  <main class="wrap">
+    <section id="masonry" class="masonry" aria-live="polite"></section>
+  </main>
+
+  <footer class="credit">Built by <a href="https://x.com/seuncoded" target="_blank" rel="noopener">@seuncoded</a></footer>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
