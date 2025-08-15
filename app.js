@@ -68,29 +68,35 @@ function renderFilterBar() {
 }
 
 // ===== UI builders =====
-function tileNode(item, delayIdx){
+function tileNode(item, delayIdx, eager = false){
   const div = document.createElement('article');
   div.className = 'tile';
   div.style.setProperty('--d', `${(delayIdx||0) * 0.03}s`);
+
+  // eager: first page (above-the-fold) loads immediately; later pages lazy-load
+  const imgAttrs = eager ? `decoding="async" fetchpriority="high"` 
+                         : `loading="lazy" decoding="async"`;
+
   div.innerHTML = `
-    <img class="img" src="${item.img_url}" alt="meme by @${item.handle}" loading="lazy" decoding="async">
+    <img class="img" ${imgAttrs}
+         src="${item.img_url}"
+         alt="meme by @${item.handle}">
     <div class="meta">
       <button class="by" data-h="${item.handle}" title="See all by @${item.handle}">
         <span class="at">@</span>${item.handle}
       </button>
     </div>
   `;
-  return div;
-}
 
-// Skeleton node
-function skeletonNode(){
-  const div = document.createElement('article');
-  div.className = 'tile skeleton';
-  div.innerHTML = `
-    <div class="img"></div>
-    <div class="meta"></div>
-  `;
+  // Wait for the image to load, then reveal the meta
+  const img = div.querySelector('img');
+  if (img.complete && img.naturalWidth > 0) {
+    div.classList.add('ready');
+  } else {
+    img.addEventListener('load', () => div.classList.add('ready'), { once:true });
+    img.addEventListener('error', () => div.classList.add('ready'), { once:true }); // still show meta on error
+  }
+
   return div;
 }
 
@@ -178,7 +184,8 @@ async function loadNextPage(initial=false){
     }
 
     const frag = document.createDocumentFragment();
-    items.forEach((m, i) => frag.appendChild(tileNode(m, (page*LIMIT)+i)));
+    const isFirstPage = (page === 0);
+items.forEach((m, i) => frag.appendChild(tileNode(m, (page*LIMIT)+i, isFirstPage)));
     grid.appendChild(frag);
 
     page += 1;
