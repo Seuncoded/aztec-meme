@@ -170,3 +170,13 @@ uploadForm?.addEventListener('submit', async (e) => {
 
 /* init */
 render();
+
+// Debounced "resizing" flag to pause animations during rotate/resize
+let _rz;
+window.addEventListener('resize', () => {
+  document.body.classList.add('resizing');
+  clearTimeout(_rz);
+  _rz = setTimeout(() => {
+    document.body.classList.remove('resizing');
+  }, 400); // tune if you like (300–600ms)
+});
