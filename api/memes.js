@@ -9,12 +9,14 @@ export default async function handler(req, res) {
   try {
     const client = sb();
 
-    // 👉 include `reactions` in the select
-    const { data, error } = await client
-      .from("memes")
-      .select("id, handle, img_url, reactions, created_at")
-      .order("created_at", { ascending: false })
-      .limit(300);
+const { data, error } = await client
+  .from("memes")
+  .select("id, handle, img_url, reactions, created_at")
+  .not("img_url", "is", null)
+  .neq("img_url", "")
+  .or("img_url.ilike.http%,img_url.ilike.https%") // ensure it looks like a real URL
+  .order("created_at", { ascending: false })
+  .limit(300);
 
     if (error) throw error;
 

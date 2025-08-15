@@ -41,7 +41,15 @@ function tileNode(item, delayIdx){
   div.className = 'tile';
   div.style.setProperty('--d', `${(delayIdx||0) * 0.03}s`);
   div.innerHTML = `
-    <img class="img" src="${item.img_url}" alt="meme by @${item.handle}">
+    <img
+      class="img"
+      src="${item.img_url}"
+      alt="meme by @${item.handle}"
+      loading="lazy"
+      decoding="async"
+      referrerpolicy="no-referrer"
+      onerror="this.closest('.tile')?.remove()"
+    >
     <div class="meta">
       <span class="by">@${item.handle}</span>
       <div class="reactions" data-id="${item.id}">
