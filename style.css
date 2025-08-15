@@ -52,3 +52,23 @@ h1{ margin:0 0 8px; font-size:48px; font-weight:900; letter-spacing:.3px; backgr
   position:fixed; left:50%; transform:translateX(-50%); bottom:12px; background:#101632; color:#cfd6ff;
   border:1px solid #22305d; padding:7px 10px; border-radius:999px; font-size:12px; font-weight:800; text-decoration:none; box-shadow:0 6px 18px rgba(0,0,0,.35)
 }
+
+.featured {
+  display: block;
+  margin: 0 auto 2rem;
+  max-width: 400px;   /* Desktop size */
+  max-height: 350px;
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+  object-fit: contain; /* Avoids stretching */
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .featured {
+    max-width: 90%;   /* Almost full width on mobile */
+    max-height: 250px;
+  }
+}
