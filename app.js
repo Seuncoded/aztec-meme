@@ -90,7 +90,6 @@ $('#form').addEventListener('submit', async (e)=>{
 
 render();
 
-// ----- Meme Upload (base64 JSON -> /api/upload) -----
 const uploadForm  = document.getElementById('uploadForm');
 const uploadFile  = document.getElementById('uploadFile');
 const uploadHandle= document.getElementById('uploadHandle');
@@ -121,7 +120,7 @@ uploadForm?.addEventListener('submit', async (e) => {
   const file = uploadFile.files?.[0];
   if (!file) { uploadMsg.textContent = 'Choose an image'; return; }
 
-  // Read file as data URL (base64) to send as JSON
+  
   const dataUrl = await new Promise((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(r.result);
