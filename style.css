@@ -137,29 +137,3 @@ h1{
 /* Hide the old inline message bar permanently */
 .msg{ display:none !important; }
 
-/* Stop jitter during rotate/resize */
-body.resizing .tile {
-  animation: none !important;
-  transform: none !important;
-  opacity: 1 !important;
-}
-
-/* Also freeze hover zoom while resizing */
-body.resizing .tile:hover img {
-  transform: none !important;
-}
-
-/* Hide grid while rotating to avoid visible reflow */
-body.rotating #grid { visibility: hidden; }
-
-/* On touch devices (iPad/iPhone etc.), kill the drop + hover transforms to prevent shake */
-@media (hover: none) and (pointer: coarse) {
-  .tile { animation: none !important; opacity: 1 !important; transform: none !important; }
-  .tile img { transition: none !important; }
-}
-
-/* Extra iOS Safari guard */
-@supports (-webkit-touch-callout: none) {
-  .tile { animation: none !important; transform: none !important; }
-  .tile img { transition: none !important; }
-}
