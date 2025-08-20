@@ -1,8 +1,8 @@
-
-import { sb } from "./_supabase.js";
+// /api/submit-meme.js
+import { sbAdmin } from "./_supabase_admin.js";
 
 const BANNED = ["porn", "pornhub", "xvideos"].map(s => s.toLowerCase());
-const MAX_IMAGE_BYTES = 6 * 1024 * 1024; // 6MB
+const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
 
 const startsWithAt = v => typeof v === "string" && v.trim().startsWith("@");
 const cleanHandle  = s => s?.trim().replace(/^@+/, "").toLowerCase() || "";
@@ -16,19 +16,31 @@ function normalizeUrl(s = "") {
   try {
     const u = new URL(trimmed);
     if (isImagePathname(u.pathname)) {
-      u.search = "";                    
+      u.search = "";
       return u.toString();
     }
   } catch {}
   return trimmed;
 }
 
+
+const hits = new Map();
+function tooFast(ip, win = 8000) {
+  const now = Date.now();
+  const last = hits.get(ip) ?? 0;
+  if (now - last < win) return true;
+  hits.set(ip, now);
+  return false;
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
 
   try {
-    const { handle: rawHandle, imgUrl } = req.body || {};
+    const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress || "unknown";
+    if (tooFast(ip)) return res.status(429).json({ error: "Slow down a bit 🐢" });
 
+    const { handle: rawHandle, imgUrl } = req.body || {};
 
     if (!startsWithAt(rawHandle)) {
       return res.status(400).json({ error: "Enter your @handle (must start with @)" });
@@ -41,33 +53,27 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Handle not allowed" });
     }
 
-   
     if (typeof imgUrl !== "string" || !imgUrl.trim()) {
       return res.status(400).json({ error: "Image URL is required" });
     }
     const url = normalizeUrl(imgUrl);
 
     if (!isImagePathname(new URL(url).pathname)) {
-     
       try {
         const head = await fetch(url, { method: "HEAD" });
         const ct = (head.headers.get("content-type") || "").toLowerCase();
-        if (!ct.startsWith("image/")) {
-          return res.status(400).json({ error: "URL must point to an image" });
-        }
+        if (!ct.startsWith("image/")) return res.status(400).json({ error: "URL must point to an image" });
         const len = parseInt(head.headers.get("content-length") || "0", 10);
-        if (len && len > MAX_IMAGE_BYTES) {
-          return res.status(400).json({ error: "Image too large (max 6MB)" });
-        }
+        if (len && len > MAX_IMAGE_BYTES) return res.status(400).json({ error: "Image too large (max 6MB)" });
       } catch {
         return res.status(400).json({ error: "URL not reachable" });
       }
     }
 
-    const client = sb();
+    const supa = sbAdmin();
 
-    
-    const { data: dup } = await client
+  
+    const { data: dup } = await supa
       .from("memes")
       .select("id")
       .eq("handle", handle)
@@ -78,18 +84,14 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, meme: dup[0], duplicate: true });
     }
 
-    
-    const { data, error } = await client
+    // insert (service role bypasses RLS)
+    const { data, error } = await supa
       .from("memes")
-      .upsert(
-        { handle, img_url: url, source: "url" },
-        { onConflict: ['handle', 'img_url'], ignoreDuplicates: true }
-      )
+      .insert({ handle, img_url: url, source: "url" })
       .select()
       .single();
 
     if (error) throw error;
-
     return res.status(200).json({ ok: true, meme: data });
   } catch (e) {
     return res.status(500).json({ error: e.message || "Server error" });

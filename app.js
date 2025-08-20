@@ -91,7 +91,7 @@ function tileNode(item, delayIdx, eager = false){
   return div;
 }
 
-// ===== data =====
+
 async function fetchPage(p, handle){
   const params = new URLSearchParams();
   params.set('page', String(p));
