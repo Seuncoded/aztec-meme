@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Aztec Memes — Contest</title>
+  <link rel="stylesheet" href="/style.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" type="image/svg+xml"
+    href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="%236f6ce8"/><rect x="18" y="18" width="28" height="28" rx="6" fill="%23ffffff"/></svg>' />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <style>
+    /* base (unchanged behavior) */
+    body{margin:0;background:#0a0f18;color:#e9ecff;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial}
+    .wrap{max-width:1100px;margin:22px auto;padding:0 16px}
+    .head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+    .card{border:1px solid #273264;border-radius:14px;padding:14px;background:linear-gradient(180deg,#0f1832,#0b1330);box-shadow:0 10px 26px rgba(0,0,0,.35);backdrop-filter:blur(4px)}
+    .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .btn{background:#6f6ce8;border:0;color:#fff;border-radius:10px;padding:10px 14px;font-weight:900;cursor:pointer;transition:transform .05s ease;box-shadow:0 10px 22px rgba(111,108,232,.18)}
+    .btn:active{transform:translateY(1px)}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+    .input{height:44px;border-radius:10px;padding:0 12px;border:1px solid #2a3a7a;background:#0f1738;color:#e9ecff}
+    .input:focus{outline:0;box-shadow:0 0 0 2px #6f6ce833}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-top:12px}
+    .tile{border:1px solid #273264;border-radius:14px;overflow:hidden;background:#0f1832}
+    .grid .tile{display:flex;flex-direction:column}
+    .grid .tile img{width:100%;aspect-ratio:1/1;object-fit:cover}
+    .tile .meta{display:flex;align-items:center;justify-content:space-between;padding:8px 10px}
+    .muted{color:#9ba6d6}
+    .pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid #273264;background:#0f1832}
+    .notice{margin-top:8px;color:#bcd0ff}
+    .hr{height:1px;background:#273264;margin:12px 0}
+    .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#111a3d;border:1px solid #2a3a7a;color:#dfe5ff;border-radius:10px;padding:10px 14px;font-weight:800;display:none}
+    .toast.show{display:block}
+
+    /* —— Fancy page title —— */
+    .head .title{
+      font-weight:900;font-size:34px;letter-spacing:.3px;
+      background:linear-gradient(90deg,#9a7bff,#6f6ce8 45%,#b7b4ff);
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+      filter:drop-shadow(0 4px 14px rgba(111,108,232,.18));
+    }
+
+    /* —— Status bar —— */
+    #status.card{
+      padding:14px 16px;
+      background:
+        radial-gradient(180px 80px at 0% 0%, rgba(143,132,255,.16), transparent 60%),
+        radial-gradient(220px 120px at 100% 100%, rgba(99,193,255,.12), transparent 65%),
+        linear-gradient(180deg,#0f1832,#0b1330);
+      border:1px solid #2b3a7c;border-radius:16px;
+      box-shadow:0 12px 28px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.03);
+    }
+    #status .bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    #status .chip{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:8px 12px;border-radius:999px;
+      background:#101a3f;border:1px solid #2c3b7d;color:#dbe0ff;
+      font-weight:800;font-size:13px;
+      box-shadow:0 6px 16px rgba(0,0,0,.22);
+      transition:transform .15s ease,filter .15s ease;
+    }
+    #status .chip:hover{transform:translateY(-1px);filter:brightness(1.06)}
+    #status .chip .dot{width:8px;height:8px;border-radius:50%;box-shadow:0 0 0 3px rgba(255,255,255,.06) inset}
+
+    /* variants */
+    #status .chip.week{background:#121f4a;border-color:#3a4ab0}
+    #status .chip.cap{background:#111e40}
+    #status .chip.id{background:transparent;border-style:dashed;opacity:.85;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}
+
+    /* state dots */
+    #status .chip.open   .dot{background:#23d18b}
+    #status .chip.closed .dot{background:#9aa3c7}
+
+    /* 🔥 distinct “voting” look */
+    #status .chip.voting{
+      background:linear-gradient(135deg,#2b1f09,#231a3c);
+      border-color:#6a4a12;
+      color:#ffdca8;
+      box-shadow:
+        0 0 0 1px rgba(255,177,66,.18) inset,
+        0 8px 20px rgba(255,177,66,.12);
+    }
+    #status .chip.voting .dot{background:#ffb020}
+
+    /* —— Voting section header polish —— */
+    #voteBox .pill{
+      background:linear-gradient(135deg,#1b2454,#251b55);
+      border-color:#3f4fc2;
+      box-shadow:0 8px 20px rgba(0,0,0,.25), inset 0 0 0 1px rgba(255,255,255,.04);
+    }
+    #voteBox .pill strong{
+      display:inline-flex;align-items:center;gap:8px;font-weight:900;letter-spacing:.2px;
+    }
+    #voteBox .pill strong::before{content:"🗳️";filter:drop-shadow(0 0 8px rgba(255,255,255,.12))}
+    #voteBox .pill .muted{
+      color:#c7cef9;opacity:.9;font-weight:700
+    }
+
+    
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="head">
+      <div class="title">🏆 Memes Contest</div>
+      <a class="btn" href="/">← Back</a>
+    </div>
+
+    <!-- filled by JS; classes/ids unchanged -->
+    <div id="status" class="card"></div>
+
+    <div id="submitBox" class="card" style="margin-top:12px;display:none">
+      <div class="row" style="gap:8px;margin-bottom:8px">
+        <input id="handle" class="input" placeholder="@yourhandle" style="min-width:180px" />
+        <input id="imgUrl" class="input" placeholder="Paste image URL (jpg/png/webp)" style="flex:1;min-width:260px" />
+        <input id="uploadFile" type="file" accept="image/*" class="input" style="padding:8px;height:44px" />
+        <button id="submitBtn" class="btn">Submit Entry</button>
+      </div>
+      <div class="muted" id="submitHint">Use <strong>URL or File</strong> (max 6MB). One entry per handle.</div>
+    </div>
+
+    <div id="entriesBox" class="card" style="margin-top:12px;display:none">
+      <div class="row"><div class="pill"><strong>Entries</strong> <span class="muted" id="entriesCount"></span></div></div>
+      <div id="entriesGrid" class="grid"></div>
+    </div>
+
+    <div id="voteBox" class="card" style="margin-top:12px;display:none">
+      <div class="row">
+        <div class="pill">
+          <strong>Voting</strong> <span class="muted">(1 vote per meme per handle)</span>
+        </div>
+      </div>
+      <div class="row" style="margin:10px 0">
+        <input id="voterHandle" class="input" placeholder="@yourhandle" />
+        <span class="muted">Enter your handle to vote</span>
+      </div>
+      <div id="voteGrid" class="grid"></div>
+    </div>
+
+    <div id="leaderBox" class="card" style="margin-top:12px;display:none">
+      <div class="row"><div class="pill"><strong>Leaderboard</strong></div></div>
+      <div id="leaderGrid" class="grid"></div>
+    </div>
+
+    <!-- admin helpers (only show if ?admin=1) -->
+    <div id="adminBox" class="card" style="margin-top:12px;display:none">
+      <div class="row">
+        <input id="newTitle" class="input" placeholder="Contest title (Week NN)" />
+        <input id="newCap"   class="input" type="number" placeholder="Cap (e.g. 10)" style="width:120px" />
+        <button id="openBtn" class="btn">Open Contest</button>
+      </div>
+      <div class="hr"></div>
+      <div class="row">
+        <input id="useContestId" class="input" placeholder="contest_id" style="min-width:320px" />
+        <button id="startVotingBtn" class="btn">Start Voting</button>
+        <button id="closeBtn" class="btn">Close & Pick Winner</button>
+      </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+  </div>
+
+  <script src="/contest.js" defer></script>
+</body>
+</html>

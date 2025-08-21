@@ -4,6 +4,10 @@
   "type": "module",
   "private": true,
   "dependencies": {
-    "@supabase/supabase-js": "^2.45.0"
+    "@supabase/supabase-js": "^2.45.0",
+    "express": "^5.1.0"
+  },
+  "scripts": {
+    "dev": "node --env-file=.env.local server.js"
   }
 }

@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Aztec Memes — Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" type="image/svg+xml"
+    href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="%236f6ce8"/><rect x="18" y="18" width="28" height="28" rx="6" fill="%23ffffff"/></svg>' />
+  <style>
+    :root { --bg:#0a0f18; --card:#0f1730; --ink:#e9ecff; --muted:#9badff; --line:#273264; --btn:#6f6ce8; }
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial}
+    .wrap{max-width:920px;margin:26px auto;padding:0 16px}
+    .title{font-weight:900;font-size:26px;margin-bottom:12px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:12px}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .input{height:44px;border-radius:10px;padding:0 12px;border:1px solid var(--line);background:#0f1738;color:var(--ink)}
+    .btn{background:var(--btn);border:0;color:#fff;border-radius:10px;padding:10px 14px;font-weight:900;cursor:pointer}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+    .pill{border:1px solid var(--line);border-radius:999px;padding:6px 10px;background:#0f1832;color:var(--muted)}
+    .muted{color:var(--muted)}
+    pre{white-space:pre-wrap;word-break:break-word;background:#0b1330;border:1px solid var(--line);padding:12px;border-radius:10px}
+    .hr{height:1px;background:var(--line);margin:12px 0}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="title">🛠️ Memes Contest — Admin</div>
+
+    <!-- Token box -->
+    <div class="card">
+      <div class="row">
+        <input id="tokenInput" class="input" style="flex:1" placeholder="Paste admin token…" />
+        <button id="saveTokenBtn" class="btn">Save Token</button>
+        <span id="tokenStatus" class="muted"></span>
+      </div>
+      <div class="muted" style="margin-top:6px">Tip: token is stored as <code>localStorage["az-admin-token"]</code> on this browser.</div>
+    </div>
+
+    <!-- Status / active contest -->
+    <div class="card" id="statusCard">
+      <div class="row" style="justify-content:space-between">
+        <div id="activeTitle" class="pill">No active contest</div>
+        <div class="row">
+          <span class="pill">status: <strong id="activeStatus">—</strong></span>
+          <span class="pill">cap: <strong id="activeCap">—</strong></span>
+        </div>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <input id="contestId" class="input" style="flex:1" readonly placeholder="contest_id will appear here automatically" />
+        <button id="checkBtn" class="btn">Check Status</button>
+      </div>
+    </div>
+
+    <!-- Open contest -->
+    <div class="card">
+      <div class="row">
+        <input id="titleInput" class="input" style="flex:1" placeholder="Contest title (e.g., Week 34)" />
+        <input id="capInput" class="input" type="number" min="1" placeholder="Max entries (e.g., 10)" style="width:180px" />
+        <button id="openBtn" class="btn">Open Contest</button>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="card">
+      <div class="row">
+        <button id="startVotingBtn" class="btn">Start Voting</button>
+        <button id="closeBtn" class="btn">Close Contest</button>
+      </div>
+    </div>
+
+    <!-- Result console -->
+    <div class="card">
+      <pre id="resultBox" class="muted">Ready.</pre>
+      <div class="muted">Only you can see this page. Don’t share your token.</div>
+    </div>
+  </div>
+
+  <script>
+    // --- helpers ---
+    const $ = (s, r=document)=>r.querySelector(s);
+
+    const els = {
+      tokenInput: $("#tokenInput"),
+      saveTokenBtn: $("#saveTokenBtn"),
+      tokenStatus: $("#tokenStatus"),
+
+      activeTitle: $("#activeTitle"),
+      activeStatus: $("#activeStatus"),
+      activeCap: $("#activeCap"),
+      contestId: $("#contestId"),
+
+      titleInput: $("#titleInput"),
+      capInput: $("#capInput"),
+      openBtn: $("#openBtn"),
+
+      startVotingBtn: $("#startVotingBtn"),
+      closeBtn: $("#closeBtn"),
+      checkBtn: $("#checkBtn"),
+
+      resultBox: $("#resultBox"),
+    };
+
+    function adminHeaders() {
+      const t = localStorage.getItem("az-admin-token") || "";
+      return t ? { "x-admin-token": t } : {};
+    }
+    function show(obj){ els.resultBox.textContent = JSON.stringify(obj, null, 2); }
+
+    async function fetchJSON(url, opts={}) {
+      const res = await fetch(url, opts);
+      let data;
+      try { data = await res.json(); } catch { data = { error:"Invalid JSON response" }; }
+      if (!res.ok) throw data;
+      return data;
+    }
+
+    // --- active contest loading + autofill ---
+    async function loadActive() {
+      try {
+        const j = await fetchJSON("/api/contest/active");
+        const c = j.contest || null;
+        if (!c) {
+          els.activeTitle.textContent = "No active contest";
+          els.activeStatus.textContent = "—";
+          els.activeCap.textContent = "—";
+          els.contestId.value = "";
+          show(j);
+          return null;
+        }
+        els.activeTitle.textContent = c.title;
+        els.activeStatus.textContent = c.status;
+        els.activeCap.textContent = c.submission_cap ?? "—";
+        els.contestId.value = c.id;                 // <-- autofill here
+        show(j);
+        return c;
+      } catch (e) {
+        show(e);
+        return null;
+      }
+    }
+
+    async function getActiveId() {
+      if (els.contestId.value) return els.contestId.value;
+      const c = await loadActive();
+      return c?.id || "";
+    }
+
+    // --- token wiring ---
+    function refreshTokenStatus(){
+      const t = localStorage.getItem("az-admin-token") || "";
+      els.tokenStatus.textContent = t ? `Token saved (${t.slice(0,6)}…${t.slice(-4)})` : "No token saved";
+    }
+    els.saveTokenBtn.addEventListener("click", () => {
+      const t = (els.tokenInput.value || "").trim();
+      if (!t) { alert("Paste a token first"); return; }
+      localStorage.setItem("az-admin-token", t);
+      els.tokenInput.value = "";
+      refreshTokenStatus();
+    });
+
+    // --- admin actions ---
+    els.openBtn.addEventListener("click", async () => {
+      const title = (els.titleInput.value || "").trim();
+      const cap = Number(els.capInput.value || "0");
+      if (!title || !cap) { show({ error:"title and cap required" }); return; }
+
+      try {
+        const j = await fetchJSON("/api/contest/open", {
+          method:"POST",
+          headers:{ "content-type":"application/json", ...adminHeaders() },
+          body: JSON.stringify({ title, submission_cap: cap })
+        });
+        show(j);
+        els.titleInput.value = "";
+        els.capInput.value = "";
+        await loadActive(); // refresh id/status
+      } catch (e) { show(e); }
+    });
+
+    els.startVotingBtn.addEventListener("click", async () => {
+      const id = await getActiveId();
+      if (!id) { show({ error:"contest_id required" }); return; }
+      try {
+        const j = await fetchJSON("/api/contest/start-voting", {
+          method:"POST",
+          headers:{ "content-type":"application/json", ...adminHeaders() },
+          body: JSON.stringify({ contest_id: id })
+        });
+        show(j);
+        await loadActive();
+      } catch (e) { show(e); }
+    });
+
+    els.closeBtn.addEventListener("click", async () => {
+      const id = await getActiveId();
+      if (!id) { show({ error:"contest_id required" }); return; }
+      try {
+        const j = await fetchJSON("/api/contest/close", {
+          method:"POST",
+          headers:{ "content-type":"application/json", ...adminHeaders() },
+          body: JSON.stringify({ contest_id: id })
+        });
+        show(j);
+        await loadActive();
+      } catch (e) { show(e); }
+    });
+
+    els.checkBtn.addEventListener("click", loadActive);
+
+    // init
+    refreshTokenStatus();
+    loadActive();
+  </script>
+</body>
+</html>

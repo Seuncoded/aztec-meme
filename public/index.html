@@ -13,20 +13,31 @@
   <div class="wrap">
     <h1>Aztec Meme Gallery</h1>
     <p class="lead">Show off your Aztec creativity — share your meme (link or upload) with your @handle</p>
+    
+    <form id="unifiedForm" class="controls controls--unified">
+  <input id="handleAll" type="text" placeholder="@handle" />
+  <input id="imgAll" type="url" placeholder="https://…image.jpg/png/gif/webp" />
+  <input id="fileAll" type="file" accept="image/*" />
+  <button id="submitAll" type="submit">Submit</button>
+</form>
 
     
-    <form id="form" class="controls" autocomplete="off">
-      <input id="handle" type="text" placeholder="@handle" />
-      <input id="imgUrl" type="url" placeholder="https://…image.jpg/png/gif/webp" />
-      <button id="submitBtn" type="submit">Submit</button>
-    </form>
+<div id="winnersBox" style="display:none">
+  <div id="winnersHeader">
+    <div id="winnersTitle"><span id="winnersContestTitle"></span></div>
+  </div>
+  <div id="winnersGrid"></div>
+</div>
 
-    
-    <form id="uploadForm" class="controls upload" autocomplete="off">
-      <input id="uploadHandle" type="text" placeholder="@handle" />
-      <input id="uploadFile" type="file" accept="image/*" />
-      <button id="uploadBtn" type="submit">Upload Meme</button>
-    </form>
+
+<div id="ctaRow" style="display:flex;gap:10px;justify-content:center;margin:10px 0 18px;">
+  <a id="contestCta" href="/contest.html" style="display:none;">
+    <span class="ico">🏆</span> Contest Here
+  </a>
+  <a id="voteCta" href="/contest.html#voting" style="display:none;">
+    <span class="ico">🗳️</span> Vote Now
+  </a>
+</div>
 
     <div id="uploadMsg" class="msg"></div>
 

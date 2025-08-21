@@ -1,62 +1,75 @@
 // /api/upload.js
-import { sbAdmin } from "./_supabase_admin.js";
+import { createHash } from "crypto";
+import { sbAdmin } from "./_supabase_admin.js"; 
 
-export const config = {
-  api: { bodyParser: { sizeLimit: "7mb" } }, // enough for max 6MB images + base64 overhead
-};
+export default async function upload(req, res) {
+  try {
+    const { handle, imageBase64 } = await getJson(req);
+    if (!handle || !imageBase64) {
+      return send(res, 400, { error: "handle and imageBase64 required" });
+    }
 
-const BANNED = ["porn", "pornhub", "xvideos"].map(s => s.toLowerCase());
-const startsWithAt = v => typeof v === "string" && v.trim().startsWith("@");
-const cleanHandle  = s => s?.trim().replace(/^@+/, "").toLowerCase() || "";
-const validHandle  = h => /^[a-z0-9_]{3,30}$/.test(h);
+    const h = String(handle).replace(/^@+/, "").trim().toLowerCase();
 
-function parseDataUrl(dataUrl) {
-  const m = /^data:(image\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl || "");
-  if (!m) return null;
-  const [, mime, b64] = m;
-  const buf = Buffer.from(b64, "base64");
-  return { mime, buf };
+  
+    const m = /^data:(.+);base64,(.*)$/.exec(imageBase64 || "");
+    if (!m) return send(res, 400, { error: "bad image data" });
+    const contentType = m[1];
+    const buf = Buffer.from(m[2], "base64");
+
+   
+    const hash = createHash("sha256").update(buf).digest("hex");
+    const ext  = (contentType.split("/")[1] || "png").toLowerCase();
+    const path = `${hash}.${ext}`;
+
+  
+    const up = await sbAdmin.storage
+      .from("memes")
+      .upload(path, buf, { contentType, upsert: false })
+      .catch(e => ({ error: e }));
+
+    if (up?.error) {
+      const msg = String(up.error?.message || "");
+      const already = msg.toLowerCase().includes("resource already exists");
+      if (!already) return send(res, 400, { error: msg || "upload failed" });
+    }
+
+
+    const { data: pub, error: pubErr } = sbAdmin.storage.from("memes").getPublicUrl(path);
+    if (pubErr) return send(res, 400, { error: pubErr.message || "public url failed" });
+    const publicUrl = pub?.publicUrl;
+    if (!publicUrl) return send(res, 400, { error: "no public url" });
+
+ 
+const { data: insData, error: insErr } = await sbAdmin
+  .from("memes")
+  .insert([{ handle: h, img_url: publicUrl }])
+  .select()
+  .maybeSingle();
+
+if (insErr) {
+  const msg = String(insErr.message || "");
+  const dup = msg.includes("duplicate key value") || msg.includes("23505");
+  if (!dup) return send(res, 400, { error: msg || "insert failed" });
+  return send(res, 200, { ok: true, duplicate: true, meme: { handle: h, img_url: publicUrl } });
 }
 
-export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
-
-  try {
-    const { handle: rawHandle, imageBase64 } = req.body || {};
-    if (!startsWithAt(rawHandle)) return res.status(400).json({ error: "Enter your @handle (must start with @)" });
-    const handle = cleanHandle(rawHandle);
-    if (!handle || !validHandle(handle)) return res.status(400).json({ error: "Invalid handle" });
-    if (BANNED.some(b => handle.includes(b))) return res.status(400).json({ error: "Handle not allowed" });
-
-    const parsed = parseDataUrl(imageBase64);
-    if (!parsed) return res.status(400).json({ error: "Invalid image" });
-    if (parsed.buf.length > 6 * 1024 * 1024) return res.status(400).json({ error: "Image too large (max 6MB)" });
-
-    const supa = sbAdmin();
-
-    // upload to storage
-    const ext = parsed.mime.split("/")[1] || "png";
-    const fileName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-    const { error: upErr } = await supa.storage
-      .from("memes")
-      .upload(fileName, parsed.buf, { contentType: parsed.mime, upsert: false });
-    if (upErr) throw upErr;
-
-    // public URL
-    const { data: pub } = supa.storage.from("memes").getPublicUrl(fileName);
-    const img_url = pub?.publicUrl;
-    if (!img_url) return res.status(500).json({ error: "URL create failed" });
-
-    // insert row
-    const { data, error } = await supa
-      .from("memes")
-      .insert({ handle, img_url, source: "upload" })
-      .select()
-      .single();
-    if (error) throw error;
-
-    return res.status(200).json({ ok: true, meme: data });
+return send(res, 200, { ok: true, meme: insData });
   } catch (e) {
-    return res.status(500).json({ error: e.message || "Server error" });
+    return send(res, 500, { error: e?.message || "server error" });
   }
+}
+
+/* helpers */
+function send(res, status, body) {
+  res.statusCode = status;
+  res.setHeader("content-type", "application/json");
+  res.end(JSON.stringify(body));
+}
+async function getJson(req) {
+  if (req.body && typeof req.body === "object") return req.body; 
+  const chunks = [];
+  for await (const c of req) chunks.push(c);
+  const raw = Buffer.concat(chunks).toString("utf8");
+  return raw ? JSON.parse(raw) : {};
 }

@@ -243,3 +243,223 @@ input, button { font-size:16px; }
 .fade-out { opacity:.2; transition: opacity .18s ease; }
 .fade-in  { opacity:1;  transition: opacity .18s ease; }
 
+/* optional: subtle glow for winners */
+#winnersGrid .tile {
+  box-shadow: 0 0 0 1px #33407a, 0 10px 26px rgba(0,0,0,.35);
+}
+
+/* Winners strip tweaks */
+#winnersBox .grid {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+#winnersBox .tile img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 12px;
+}
+
+.pill {
+  display:inline-flex; align-items:center; gap:6px;
+  padding:6px 10px; border-radius:999px;
+  border:1px solid #273264; background:#0f1832; color:#cfd6ff; font-weight:800;
+}
+
+/* --- Unified submit row (handle + url + file + button) --- */
+.controls--unified{
+  grid-template-columns: 220px 1fr 280px auto;
+  align-items: center;
+  background: linear-gradient(180deg, var(--card), var(--card2));
+  border: 1px solid var(--ring);
+  border-radius: 16px;
+  padding: 10px;
+  box-shadow: 0 10px 26px rgba(0,0,0,.35);
+}
+@media (max-width: 900px){
+  .controls--unified{ grid-template-columns: 1fr; }
+}
+#unifiedForm input[type="file"]{
+  background:#fff; border:1px solid #cfd3ff; color:#273264; cursor:pointer; height:auto; padding:10px 12px;
+  border-radius: 10px;
+}
+#submitAll{
+  height: 46px;
+  padding: 0 18px;
+  font-weight: 800;
+  background: linear-gradient(180deg,#7c79ff,var(--brand));
+  color:#fff; border:0; border-radius:12px; cursor:pointer;
+  box-shadow:0 8px 18px rgba(111,108,232,.25);
+}
+
+/* --- Winner Section --- */
+#winnersBox {
+  max-width: 520px;
+  margin: 36px auto 28px;
+  text-align: center;
+  background: linear-gradient(145deg, #111a2f, #0b1024);
+  border: 1px solid #22305d;
+  border-radius: 16px;
+  padding: 18px;
+  box-shadow: 0 10px 26px rgba(0,0,0,.35);
+  animation: fadeInUp 0.6s ease;
+}
+
+#winnersTitle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+#winnersTitle .trophy {
+  font-size: 24px;
+  filter: drop-shadow(0 0 6px rgba(0, 255, 200, 0.5));
+}
+
+#winnersTitle .text {
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: .2px;
+  background: linear-gradient(90deg, #00ffe7, #00b3ff); /* cyan–teal gradient */
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+#winnersTitle .week {
+  font-size: 14px;
+  font-weight: 800;
+  color: #8eeeff;
+  opacity: .9;
+}
+
+/* Winner meme card (hugging content) */
+#winnersGrid {
+  display: inline-block;
+  max-width: 480px;
+}
+
+#winnersGrid .tile {
+  margin: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  transition: transform 0.2s ease;
+}
+
+#winnersGrid .tile img {
+  width: 100%;
+  border-radius: 12px;
+  display: block;
+}
+
+#winnersGrid .tile:hover {
+  transform: translateY(-3px);
+}
+
+/* Small fade-up animation */
+@keyframes fadeInUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
+/* --- Contest CTA (centered, glossy, animated) --- */
+#contestCta{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  padding:12px 20px;
+  border-radius:999px;
+  font-weight:900;
+  letter-spacing:.2px;
+  text-decoration:none;
+  color:#08111f;                      /* dark ink on light button */
+  background: linear-gradient(135deg,#ffd865,#ffb43a); /* golden */
+  border:1px solid rgba(255,255,255,.25);
+  box-shadow:
+    0 8px 22px rgba(255, 178, 58, .35),
+    inset 0 1px 0 rgba(255,255,255,.35);
+  position:relative;
+  transition: transform .18s ease, filter .18s ease, box-shadow .18s ease;
+}
+
+/* subtle float */
+#contestCta { animation: floaty 4s ease-in-out infinite; }
+@keyframes floaty{
+  0%,100%{ transform: translateY(0) }
+  50%    { transform: translateY(-2px) }
+}
+
+#contestCta .ico{
+  font-size:18px;
+  filter: drop-shadow(0 0 6px rgba(255,215,0,.45));
+}
+
+/* glossy sweep on hover */
+#contestCta::after{
+  content:"";
+  position:absolute; inset:0;
+  border-radius:inherit;
+  background: linear-gradient(120deg,
+    transparent 0%, rgba(255,255,255,.35) 25%,
+    rgba(255,255,255,.0) 50%);
+  transform: translateX(-120%);
+  transition: transform .6s ease;
+  pointer-events:none;
+}
+#contestCta:hover::after{ transform: translateX(120%); }
+
+#contestCta:hover{
+  filter: brightness(1.04);
+  box-shadow:
+    0 10px 26px rgba(255,178,58,.42),
+    inset 0 1px 0 rgba(255,255,255,.5);
+}
+#contestCta:active{ transform: translateY(1px) }
+
+/* focus ring for accessibility */
+#contestCta:focus-visible{
+  outline:2px solid #ffe29a;
+  outline-offset:3px;
+  box-shadow:
+    0 0 0 4px rgba(255,220,130,.22),
+    0 12px 30px rgba(255,178,58,.42);
+}
+
+/* keep it tidy on small screens */
+@media (max-width:640px){
+  #contestCta{ padding:11px 16px; font-size:14px }
+}
+
+/* Vote CTA (teal) */
+#voteCta{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  padding:12px 20px;
+  border-radius:999px;
+  font-weight:900;
+  letter-spacing:.2px;
+  text-decoration:none;
+  color:#08111f;
+  background: linear-gradient(135deg,#67ffd6,#3fe3c2);
+  border:1px solid rgba(255,255,255,.25);
+  box-shadow:
+    0 8px 22px rgba(63,227,194,.30),
+    inset 0 1px 0 rgba(255,255,255,.35);
+  transition: transform .18s ease, filter .18s ease, box-shadow .18s ease;
+}
+#voteCta:hover{
+  filter:brightness(1.05);
+  transform:translateY(-1px);
+  box-shadow:
+    0 10px 26px rgba(63,227,194,.38),
+    inset 0 1px 0 rgba(255,255,255,.5);
+}
+#voteCta:active{ transform:translateY(0) }
+#voteCta:focus-visible{
+  outline:2px solid #9fffe9;
+  outline-offset:3px;
+  box-shadow:0 0 0 4px rgba(127,255,230,.22);
+}

@@ -1,0 +1,366 @@
+const $  = (s, r=document)=>r.querySelector(s);
+const $$ = (s, r=document)=>[...r.querySelectorAll(s)];
+const toast = (m)=>{ const t=$("#toast"); t.textContent=m; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"), 2000); };
+
+const qs = new URLSearchParams(location.search);
+const isAdmin = qs.get("admin")==="1";
+
+const els = {
+  status: $("#status"),
+  submitBox: $("#submitBox"),
+  entriesBox: $("#entriesBox"),
+  voteBox: $("#voteBox"),
+  leaderBox: $("#leaderBox"),
+  adminBox: $("#adminBox"),
+
+  handle: $("#handle"),
+  imgUrl: $("#imgUrl"),
+  uploadFile: $("#uploadFile"),
+  memeId: $("#memeId"),
+  submitBtn: $("#submitBtn"),
+  submitHint: $("#submitHint"),
+
+  entriesCount: $("#entriesCount"),
+  entriesGrid: $("#entriesGrid"),
+
+  voterHandle: $("#voterHandle"),
+  voteGrid: $("#voteGrid"),
+
+  leaderGrid: $("#leaderGrid"),
+
+  newTitle: $("#newTitle"),
+  newCap: $("#newCap"),
+  openBtn: $("#openBtn"),
+  useContestId: $("#useContestId"),
+  startVotingBtn: $("#startVotingBtn"),
+  closeBtn: $("#closeBtn"),
+};
+
+function setContestIdField(id){
+  const el = document.getElementById("useContestId");
+  if (el) {
+    el.value = id || "";
+    // fire an input event in case any listeners depend on it
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+}
+
+// state
+let active = null;   // {id,title,status,submission_cap,...}
+let entries = [];    // array with memes joined
+
+init().catch(err=>console.error(err));
+
+async function init(){
+  if (isAdmin) els.adminBox.style.display = "block";
+  await refreshActive();
+  wireEvents();
+  if (active) await renderByStatus();
+}
+
+function wireEvents(){
+  els.submitBtn?.addEventListener("click", onSubmit);
+  els.openBtn?.addEventListener("click", onOpen);
+  els.startVotingBtn?.addEventListener("click", onStartVoting);
+  els.closeBtn?.addEventListener("click", onClose);
+  els.uploadFile?.addEventListener("change", () => {
+  if (els.uploadFile.files?.length) els.imgUrl.value = "";
+});
+els.imgUrl?.addEventListener("input", () => {
+  if (els.imgUrl.value.trim()) els.uploadFile.value = "";
+});
+
+  els.voteGrid?.addEventListener("click", async (e)=>{
+  const btn = e.target.closest("button[data-entry]");
+  if (!btn) return;
+
+  const entry = btn.dataset.entry;
+  const voter = (els.voterHandle.value || "").trim();
+  if (!voter) { toast("Enter your @handle first"); return; }
+
+  btn.disabled = true;
+  try {
+    const r = await fetch("/api/contest/vote", {
+      method:"POST",
+      headers:{ "content-type":"application/json" },
+      body: JSON.stringify({ entry_id: entry, voter_handle: voter })
+    });
+    const j = await r.json();
+
+    if (!r.ok) {
+      toast(String(j?.error || "Vote failed"));
+      return;
+    }
+
+    toast(j.duplicate ? "Already voted" : "Voted!");
+    await renderLeaderboard();  // refresh counts
+  } catch (err) {
+    toast(String(err));
+  } finally {
+    btn.disabled = false;
+  }
+});
+}
+
+async function refreshActive(){
+  const r = await fetch("/api/contest/active");
+  const j = await r.json();
+  active = j.contest || null;
+  els.status.innerHTML = renderStatus(active);
+  if (active) els.useContestId.value = active.id;
+   setContestIdField(active ? active.id : "");
+}
+
+function renderStatus(c){
+  if (!c) return `<div class="row"><div class="pill"><strong>No active contest</strong></div></div>`;
+  const left = c.status === "open" ? `<span class="pill">Status: open</span>` :
+              c.status === "voting" ? `<span class="pill">Status: voting</span>` :
+              `<span class="pill">Status: ${c.status}</span>`;
+  return `
+    <div class="row">
+      <div class="title" style="font-size:20px">${c.title}</div>
+      <div style="flex:1"></div>
+      ${left}
+      <span class="pill">Cap: ${c.submission_cap}</span>
+      <span class="muted">id: ${c.id}</span>
+    </div>
+  `;
+}
+
+async function renderByStatus(){
+  // reset boxes
+  els.submitBox.style.display = "none";
+  els.entriesBox.style.display = "none";
+  els.voteBox.style.display = "none";
+  els.leaderBox.style.display = "none";
+
+  // load entries if we have a contest
+  entries = active ? await getEntries(active.id) : [];
+
+  if (!active) return;
+
+  if (active.status === "open"){
+    els.submitBox.style.display = "block";
+    els.entriesBox.style.display = "block";
+    els.entriesCount.textContent = `(${entries.length}/${active.submission_cap})`;
+    els.entriesGrid.innerHTML = entries.map(entryTile).join("");
+    els.submitHint.textContent = `One entry per handle.`;
+
+    // --- hard stop when cap is reached ---
+const full = entries.length >= active.submission_cap;
+
+// toggle inputs + button
+els.submitBtn.disabled = full;
+els.handle.disabled = full;
+els.imgUrl.disabled = full;
+els.uploadFile && (els.uploadFile.disabled = full);
+els.memeId && (els.memeId.disabled = full);
+
+// update helper text
+els.submitHint.textContent = full
+  ? "Submission cap reached — entries are closed."
+  : "One entry per handle.";
+  }
+  else if (active.status === "voting"){
+    els.voteBox.style.display = "block";
+    els.voteGrid.innerHTML = entries.map(voteTile).join("");
+    await renderLeaderboard();
+  }
+  else if (active.status === "closed"){
+    await renderLeaderboard(); // still show winners/board
+  }
+}
+
+async function getEntries(contest_id){
+  const r = await fetch(`/api/contest/entries?contest_id=${encodeURIComponent(contest_id)}`);
+  const j = await r.json();
+  return j.items || [];
+}
+
+function entryTile(e){
+  const m = e.memes;
+  return `
+    <article class="tile">
+      <img src="${m.img_url}" alt="entry by @${e.submitter_handle}">
+      <div class="meta">
+        <span class="muted">@${e.submitter_handle}</span>
+        <code style="opacity:.7">${e.id.slice(0,8)}…</code>
+      </div>
+    </article>
+  `;
+}
+function voteTile(e){
+  const m = e.memes;
+  return `
+    <article class="tile">
+      <img src="${m.img_url}" alt="entry by @${e.submitter_handle}">
+      <div class="meta">
+        <span class="muted">@${e.submitter_handle}</span>
+        <button class="btn" data-entry="${e.id}">Vote</button>
+      </div>
+    </article>
+  `;
+}
+
+async function renderLeaderboard(){
+  if (!active) return;
+  els.leaderBox.style.display = "block";
+  const r = await fetch(`/api/contest/leaderboard?contest_id=${encodeURIComponent(active.id)}`);
+  const j = await r.json();
+  const items = j.items || [];
+  els.leaderGrid.innerHTML = items.map((e,i)=>{
+    const m = e.memes;
+    return `
+      <article class="tile">
+        <img src="${m.img_url}" alt="entry by @${e.submitter_handle}">
+        <div class="meta">
+          <span>#${i+1} • @${e.submitter_handle}</span>
+          <span class="muted">${e.votes} votes</span>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+// ----- actions -----
+async function onSubmit(){
+  if (!active) { toast("No open contest"); return; }
+   if (entries.length >= active.submission_cap) {
+    toast("Submission cap reached — entries are closed.");
+    return;
+  }
+
+  let handle = (els.handle.value || "").trim();
+  const url    = (els.imgUrl.value || "").trim();
+  const file   = els.uploadFile?.files?.[0] || null;
+
+  if (!handle) { toast("Enter your @handle"); return; }
+  if (!handle.startsWith("@")) handle = "@"+handle;       // enforce @ for API
+  if (!url && !file) { toast("Add an image URL or choose a file"); return; }
+
+  els.submitBtn.disabled = true;
+  try {
+    let finalUrl = url;
+
+    // if a file is chosen, upload it first
+    if (file) {
+      const MAX = 6 * 1024 * 1024;
+      if (file.size > MAX) { toast("Image too large (max 6MB)"); return; }
+
+      const dataUrl = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result);
+        r.onerror = reject;
+        r.readAsDataURL(file);
+      });
+
+      const up = await fetch("/api/upload", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ handle, imageBase64: dataUrl })
+      });
+      const uj = await up.json();
+
+      if (!up.ok || !uj.ok) {
+        toast(uj?.error || "Upload failed");
+        return;
+      }
+
+      // accept either `url` or `meme.img_url`
+      finalUrl = uj.url || uj.meme?.img_url;
+      if (!finalUrl) { toast("Upload failed: no URL returned"); return; }
+    }
+
+// ...inside onSubmit()
+const r = await fetch("/api/contest/submit", {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({
+    contest_id: active?.id,          // ✅ send the active contest id
+    handle,
+    imgUrl: finalUrl                 // or meme_id if you’re using that path
+  })
+});
+    const j = await r.json();
+    if (!r.ok) { toast(j?.error || "Submit failed"); return; }
+
+    toast(j.duplicate ? "Already submitted" : "Submitted!");
+    // reset
+    els.handle.value = "";
+    els.imgUrl.value = "";
+    if (els.uploadFile) els.uploadFile.value = "";
+    await refreshActive();
+    await renderByStatus();
+  } finally {
+    els.submitBtn.disabled = false;
+  }
+}
+
+async function onOpen(){
+  const title = (els.newTitle.value || "").trim();
+  const cap   = Number(els.newCap.value || 10);
+  if (!title) { toast("title required"); return; }
+
+  const r = await fetch("/api/contest/open", {
+    method:"POST",
+    headers:{ "content-type":"application/json" },
+    body: JSON.stringify({ title, submission_cap: cap })
+  });
+  const j = await r.json();
+  if (!r.ok){ toast(j.error || "Open failed"); return; }
+
+  toast("Contest opened");
+  els.newTitle.value = ""; els.newCap.value = "";
+
+  await refreshActive();                   // refresh status
+  if (j.contest?.id) setContestIdField(j.contest.id); // <— add this guard
+}
+
+async function getActiveId() {
+  // use current state if present
+  if (active?.id) return active.id;
+
+  // fall back to a fresh fetch
+  try {
+    const r = await fetch('/api/contest/active');
+    const j = await r.json();
+    if (j?.contest?.id) {
+      active = j.contest;
+      // keep hidden field in sync if it exists
+      const f = document.getElementById('useContestId');
+      if (f) f.value = active.id;
+      return active.id;
+    }
+  } catch (_) {}
+  return "";
+}
+
+async function onStartVoting() {
+  const id = await getActiveId();            // <-- robust fetch
+  if (!id) { toast("No active contest id"); return; }
+
+  const r = await fetch("/api/contest/start-voting", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ contest_id: id })
+  });
+  const j = await r.json();
+  if (!r.ok) { toast(j.error || "Failed"); return; }
+  toast("Voting started");
+  await refreshActive(); await renderByStatus();
+}
+
+async function onClose() {
+  const id = await getActiveId();            // <-- robust fetch
+  if (!id) { toast("No active contest id"); return; }
+
+  const r = await fetch("/api/contest/close", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ contest_id: id })
+  });
+  const j = await r.json();
+  if (!r.ok) { toast(j.error || "Close failed"); return; }
+  toast("Closed. Winner picked!");
+  await refreshActive(); await renderByStatus();
+}

@@ -2,23 +2,19 @@
 const $  = (sel, root=document) => root.querySelector(sel);
 const $$ = (sel, root=document) => [...root.querySelectorAll(sel)];
 
+
 const grid = $('#grid');
 const msg  = $('#msg');
-const btn  = $('#submitBtn');
-
 
 let filterHandle = null;
-
-
 let page = 0;
 const LIMIT = 12;
 let loading = false;
 let done = false;
 
-
 let sentinel;
 
-// Toast
+
 function showToast(message, type = 'info', ms = 2600) {
   const el = document.getElementById('toast');
   if (!el) return;
@@ -62,9 +58,7 @@ function renderFilterBar() {
         border-radius:999px; background:#22305d; color:#fff; font-weight:800;">Clear</button>
     </span>
   `;
-  $('#clearFilter')?.addEventListener('click', () => {
-    setFilter(null);
-  });
+  $('#clearFilter')?.addEventListener('click', () => setFilter(null));
 }
 
 
@@ -72,11 +66,7 @@ function tileNode(item, delayIdx, eager = false){
   const div = document.createElement('article');
   div.className = 'tile';
   div.style.setProperty('--d', `${(delayIdx||0) * 0.03}s`);
-
-  const imgAttrs = eager
-    ? `decoding="async" fetchpriority="high"`
-    : `loading="lazy" decoding="async"`;
-
+  const imgAttrs = eager ? `decoding="async" fetchpriority="high"` : `loading="lazy" decoding="async"`;
   div.innerHTML = `
     <img class="img" ${imgAttrs}
          src="${item.img_url}"
@@ -99,7 +89,7 @@ async function fetchPage(p, handle){
   if (handle) params.set('handle', handle);
   const r = await fetch('/api/memes?' + params.toString(), { cache:'no-store' });
   if (!r.ok) throw new Error('memes list failed');
-  return r.json(); // 
+  return r.json();
 }
 
 
@@ -126,22 +116,20 @@ function setupObserver(){
 }
 
 function setFilter(handle){
- 
   grid.classList.add('fade-out');
   filterHandle = handle ? handle.toLowerCase() : null;
   renderFilterBar();
- 
+
   page = 0; done = false; loading = false;
 
   setTimeout(async ()=>{
     grid.innerHTML = '';
     grid.classList.remove('fade-out');
     grid.classList.add('fade-in');
-  
+
     await loadNextPage(true);
-  
     setupObserver();
- 
+
     setTimeout(()=> grid.classList.remove('fade-in'), 250);
   }, 180);
 }
@@ -149,7 +137,6 @@ function setFilter(handle){
 async function loadNextPage(initial=false){
   if (loading || done) return;
   loading = true;
-
 
   const addSk = initial || grid.childElementCount === 0;
   let skels = [];
@@ -163,7 +150,6 @@ async function loadNextPage(initial=false){
 
   try{
     const { items, has_more } = await fetchPage(page, filterHandle);
-   
     skels.forEach(s => s.remove());
 
     if (!items || items.length === 0){
@@ -176,7 +162,7 @@ async function loadNextPage(initial=false){
 
     const frag = document.createDocumentFragment();
     const isFirstPage = (page === 0);
-items.forEach((m, i) => frag.appendChild(tileNode(m, (page*LIMIT)+i, isFirstPage)));
+    items.forEach((m, i) => frag.appendChild(tileNode(m, (page*LIMIT)+i, isFirstPage)));
     grid.appendChild(frag);
 
     page += 1;
@@ -188,7 +174,6 @@ items.forEach((m, i) => frag.appendChild(tileNode(m, (page*LIMIT)+i, isFirstPage
     loading = false;
   }
 }
-
 
 function skeletonNode(){
   const div = document.createElement('article');
@@ -225,111 +210,205 @@ grid?.addEventListener('click', (e) => {
 });
 
 
-$('#form')?.addEventListener('submit', async (e)=>{
-  e.preventDefault();
-  const rawHandle = $('#handle')?.value;
-  const imgUrl    = $('#imgUrl')?.value?.trim();
-  if (!rawHandle || !imgUrl) { showToast('Enter @handle and image URL', 'warn'); return; }
 
-  if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
-  if (msg) msg.textContent = '';
+const unifiedForm = document.getElementById('unifiedForm');
+const handleAll   = document.getElementById('handleAll');
+const imgAll      = document.getElementById('imgAll');
+const fileAll     = document.getElementById('fileAll');
+const submitAll   = document.getElementById('submitAll');
+
+unifiedForm?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const rawHandle = (handleAll?.value || '').trim();
+  const url       = (imgAll?.value || '').trim();
+  const file      = fileAll?.files?.[0] || null;
+
+  if (!rawHandle)    { showToast('Enter @handle', 'warn'); return; }
+  if (!url && !file) { showToast('Add an image URL or choose a file', 'warn'); return; }
+
+  submitAll.disabled = true;
+  submitAll.textContent = 'Submitting…';
 
   try {
+    
+    if (file) {
+      if (file.size > 6 * 1024 * 1024) { showToast('Image too large (max 6MB)', 'error'); return; }
+
+      const dataUrl = await new Promise((res, rej) => {
+        const fr = new FileReader();
+        fr.onload = () => res(fr.result);
+        fr.onerror = rej;
+        fr.readAsDataURL(file);
+      });
+
+      const resp = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ handle: rawHandle, imageBase64: dataUrl })
+      });
+      const uj = await resp.json();
+
+      if (!resp.ok || !uj.ok) {
+        showToast(uj?.error || 'Upload failed', 'error');
+      } else if (uj.duplicate) {
+        showToast('Already on the wall ✨', 'warn');
+      } else {
+        showToast('Uploaded ✅', 'success');
+      }
+
+      unifiedForm.reset();
+      setFilter(filterHandle);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return; 
+    }
+
+    
     const r = await fetch('/api/submit-meme', {
       method:'POST',
-      headers:{ 'Content-Type':'application/json' },
-      body: JSON.stringify({ handle: rawHandle, imgUrl })
+      headers:{ 'content-type':'application/json' },
+      body: JSON.stringify({ handle: rawHandle, imgUrl: url })
     });
     const j = await r.json();
 
     if (!r.ok) {
-      showToast(j?.error || 'Network error', 'error', 3200);
-      if (msg) msg.textContent = j?.error || 'Network error';
+      showToast(j?.error || 'Network error', 'error');
+    } else if (j.duplicate) {
+      showToast('Already on the wall ✨', 'warn');
     } else {
-      if (j.duplicate) {
-        showToast('That image is already on the wall ✨', 'warn');
-      } else {
-        showToast('Meme added! 🎉', 'success');
-      }
-      $('#form')?.reset();
-
-      
-      const cleaned = (rawHandle || '').replace(/^@+/, '').toLowerCase();
-      if (filterHandle && filterHandle === cleaned) {
-        setFilter(filterHandle);
-      } else {
-        
-        setFilter(filterHandle); 
-      }
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      showToast('Meme added! 🎉', 'success');
     }
+
+    unifiedForm.reset();
+    setFilter(filterHandle);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
   } catch {
-    showToast('Network error', 'error', 3200);
-    if (msg) msg.textContent = 'Network error';
+    showToast('Network error', 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Submit'; }
+    submitAll.disabled = false;
+    submitAll.textContent = 'Submit';
   }
 });
 
 
-const uploadForm   = $('#uploadForm');
-const uploadFile   = $('#uploadFile');
-const uploadHandle = $('#uploadHandle');
-const uploadBtn    = $('#uploadBtn');
-const uploadMsg    = $('#uploadMsg');
-const preview      = $('#preview');
-const previewImg   = $('#previewImg');
 
-uploadFile?.addEventListener('change', () => {
-  const f = uploadFile.files?.[0];
-  if (!f){ if (preview) preview.style.display = 'none'; return; }
-  const reader = new FileReader();
-  reader.onload = () => {
-    if (previewImg) previewImg.src = reader.result;
-    if (preview) preview.style.display = 'block';
-  };
-  reader.readAsDataURL(f);
-});
+async function loadWinners() {
+  const box   = document.getElementById('winnersBox');
+  const grid  = document.getElementById('winnersGrid');
+  const title = document.getElementById('winnersContestTitle');
 
-uploadForm?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  if (uploadMsg) uploadMsg.textContent = '';
-
-  const rawHandle = uploadHandle?.value?.trim();
-  if (!rawHandle) { showToast('Enter your @handle', 'warn'); return; }
-  const file = uploadFile?.files?.[0];
-  if (!file) { showToast('Choose an image', 'warn'); return; }
-
-  const dataUrl = await new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(r.result);
-    r.onerror = reject;
-    r.readAsDataURL(file);
-  });
+  if (!box || !grid || !title) {
+    console.warn('[winners] elements missing on page');
+    return;
+  }
 
   try {
-    if (uploadBtn){ uploadBtn.disabled = true; uploadBtn.textContent = 'Uploading…'; }
+    const r = await fetch('/api/contest/winners?limit=1', { cache: 'no-store' });
+    const text = await r.text();
+    let j;
+    try { j = JSON.parse(text); } catch {
+      console.error('[winners] Non-JSON response:', text);
+      grid.innerHTML = `<div class="muted">Winners API error (non-JSON). Check server logs.</div>`;
+      box.style.display = 'block';
+      return;
+    }
 
-    const resp = await fetch('/api/upload', {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json' },
-      body: JSON.stringify({ handle: rawHandle, imageBase64: dataUrl })
-    });
-    const j = await resp.json();
+    if (!r.ok) {
+      console.error('[winners] API error:', j);
+      grid.innerHTML = `<div class="muted">Winners API error: ${j.error || r.status}</div>`;
+      box.style.display = 'block';
+      return;
+    }
 
-    if (!resp.ok || !j.ok) {
-      showToast(j?.error || 'Upload failed', 'error', 3200);
-    } else {
-      showToast('Uploaded ✅', 'success');
-      uploadForm?.reset();
-      if (preview) preview.style.display = 'none';
-      // refresh current view
-      setFilter(filterHandle);
-      window.scrollTo({ top: 0, behavior:'smooth' });
+    const winners = j.winners || [];
+    if (!winners.length) {
+      title.textContent = '';
+      grid.innerHTML = `<div class="muted">No winners yet.</div>`;
+      box.style.display = 'block';
+      return;
+    }
+
+  
+    const winner = winners[0];
+title.innerHTML = `
+  <div id="winnersTitle">
+    <span class="trophy">🏆</span>
+    <span class="text">Meme of the Week</span>
+    
+  </div>
+`;
+    grid.innerHTML = winnerTile(winner);
+    box.style.display = 'block';
+  } catch (e) {
+    console.error('[winners] fetch failed:', e);
+    if (grid) {
+      grid.innerHTML = `<div class="muted">Failed to load winners.</div>`;
+      box.style.display = 'block';
+    }
+  }
+}
+
+function winnerTile(w) {
+  const m = w.meme || {};
+  return `
+    <article class="tile" style="position:relative; max-width:320px; margin:0 auto;">
+      <div style="
+        position:absolute;
+        top:10px; left:10px;
+        background:#6a5acd;
+        color:white;
+        padding:4px 10px;
+        border-radius:999px;
+        font-weight:600;
+        font-size:13px;
+      ">🏆 Winner</div>
+      <img src="${m.img_url || ''}" alt="Winning meme" style="border-radius:12px;">
+      <div class="meta" style="text-align:center; margin-top:6px;">
+        <span style="color:#c8cff9; font-weight:700;">@${m.handle || 'anon'}</span>
+      </div>
+    </article>
+  `;
+}
+loadWinners();
+
+
+async function refreshCtas(){
+  const contestBtn = document.getElementById('contestCta');
+  const voteBtn    = document.getElementById('voteCta');
+  if (!contestBtn || !voteBtn) return; 
+
+
+  contestBtn.style.display = 'none';
+  voteBtn.style.display = 'none';
+
+  try {
+    const r = await fetch('/api/contest/active', { cache: 'no-store' });
+    if (!r.ok) return;
+    const { contest } = await r.json();
+
+    if (!contest || !contest.status) return;
+
+   
+    const cid = contest.id;
+    if (cid) {
+      contestBtn.href = `/contest.html?contest_id=${cid}`;
+      voteBtn.href    = `/contest.html?contest_id=${cid}#voting`;
+    }
+
+   
+    if (contest.status === 'open') {
+      contestBtn.style.display = 'inline-flex';
+    } else if (contest.status === 'voting') {
+      voteBtn.style.display = 'inline-flex';
     }
   } catch {
-    showToast('Network error', 'error', 3200);
-  } finally {
-    if (uploadBtn){ uploadBtn.disabled = false; uploadBtn.textContent = 'Upload Meme'; }
+   
   }
-});
+}
+
+
+refreshCtas();
+
+
+setInterval(refreshCtas, 60000);
