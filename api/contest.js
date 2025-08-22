@@ -8,63 +8,57 @@ const sbAdmin =
   Admin.sbAdmin || Admin.supabaseAdmin || Admin.client || Admin.default;
 
 export default async function handler(req, res) {
-  res.setHeader("content-type", "application/json");
+  // always JSON
+  if (!res.headersSent) res.setHeader("content-type", "application/json");
 
   try {
     const url = new URL(req.url, "http://x");
     const action = resolveAction(url, req.method);
 
-    // ----- GET actions -----
+    // ---------- GET ----------
     if (req.method === "GET") {
-      if (action === "active")   return getActive(res);
-      if (action === "entries")  return getEntries(res, url);
-      if (action === "leaderboard") return getLeaderboard(res, url);
-      if (action === "winners")  return getWinners(res, url);
+      if (action === "active")       return getActive(res);
+      if (action === "entries")      return getEntries(res, url);
+      if (action === "leaderboard")  return getLeaderboard(res, url);
+      if (action === "winners")      return getWinners(res, url);
       return send(res, 404, { error: "Not found" });
     }
 
-    // ----- POST actions (admin-protected where needed) -----
+    // ---------- POST ----------
     const body = await readJson(req);
 
     if (action === "open") {
-      requireAdmin(req, res);
+      if (!requireAdmin(req)) return send(res, 401, { error: "unauthorized" });
       return postOpen(res, body);
     }
     if (action === "start-voting") {
-      requireAdmin(req, res);
+      if (!requireAdmin(req)) return send(res, 401, { error: "unauthorized" });
       return postStartVoting(res, body);
     }
     if (action === "close") {
-      requireAdmin(req, res);
+      if (!requireAdmin(req)) return send(res, 401, { error: "unauthorized" });
       return postClose(res, body);
     }
-    if (action === "submit") {
-      return postSubmit(res, body);
-    }
-    if (action === "vote") {
-      return postVote(res, body);
-    }
+    if (action === "submit")  return postSubmit(res, body);
+    if (action === "vote")    return postVote(res, body);
 
     return send(res, 404, { error: "Unknown action" });
   } catch (e) {
-    return send(res, 500, { error: "server error" });
+    // one final safety net
+    if (!res.headersSent) return send(res, 500, { error: "server error" });
   }
 }
 
 /* ---------------- helpers ---------------- */
 
 function resolveAction(url, method) {
-  // support both /api/contest/<action> and ?action=<action>
+  // support /api/contest/<action>  and  /api/contest?action=<action>
   const after = url.pathname.replace(/^\/api\/contest\/?/, "");
   const seg = after.split("/").filter(Boolean)[0] || "";
   const q = (url.searchParams.get("action") || "").toLowerCase();
-
   const pick = (seg || q || "").toLowerCase();
   if (pick) return pick;
-
-  // default GET /api/contest -> active
-  if (method === "GET") return "active";
-  return "";
+  return method === "GET" ? "active" : "";
 }
 
 async function readJson(req) {
@@ -77,17 +71,15 @@ async function readJson(req) {
 }
 
 function send(res, code, obj) {
+  if (res.headersSent) return;
   res.statusCode = code;
   res.end(JSON.stringify(obj));
 }
 
-function requireAdmin(req, res) {
-  const got = (req.headers["x-az-admin-token"] || "").toString().trim();
-  const need = (process.env.AZ_ADMIN_TOKEN || "").trim();
-  if (!need || got !== need) {
-    send(res, 401, { error: "unauthorized" });
-    throw new Error("unauthorized");
-  }
+function requireAdmin(req) {
+  const got  = String(req.headers["x-az-admin-token"] || "").trim();
+  const need = String(process.env.AZ_ADMIN_TOKEN || "").trim();
+  return Boolean(need && got === need);
 }
 
 /* ---------------- GET handlers ---------------- */
@@ -139,7 +131,7 @@ async function getLeaderboard(res, url) {
     contest_id = c1.id;
   }
 
-  // Try RPC first; if absent, fallback
+  // Try RPC first; fallback if missing
   const { data, error } = await sb.rpc("contest_leaderboard", { p_contest_id: contest_id });
   if (!error && Array.isArray(data)) {
     return send(res, 200, { ok: true, contest_id, items: data });

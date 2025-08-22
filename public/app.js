@@ -238,7 +238,7 @@ unifiedForm?.addEventListener('submit', async (e) => {
   try {
     
     if (file) {
-      if (file.size > 6 * 1024 * 1024) { showToast('Image too large (max 6MB)', 'error'); return; }
+      if (file.size > 3 * 1024 * 1024) { showToast('Image too large (max 6MB)', 'error'); return; }
 
       const dataUrl = await new Promise((res, rej) => {
         const fr = new FileReader();
