@@ -1,6 +1,6 @@
 {
-  "rewrites": [
-    { "source": "/api/contest/:action", "destination": "/api/contest?action=:action" },
-    { "source": "/api/contest/:action/:rest*", "destination": "/api/contest?action=:action" }
+  "routes": [
+    { "src": "^/api/contest(?:/)?$", "dest": "/api/contest.js" },
+    { "src": "^/api/contest/(.*)$", "dest": "/api/contest.js?action=$1" }
   ]
 }

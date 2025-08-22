@@ -1,16 +1,32 @@
+// public/contest.js
+
 const $  = (s, r=document)=>r.querySelector(s);
 const $$ = (s, r=document)=>[...r.querySelectorAll(s)];
-const toast = (m)=>{ const t=$("#toast"); t.textContent=m; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"), 2000); };
+const toast = (m)=>{ const t=$("#toast"); if(!t) return;
+  t.textContent=m; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"), 2000);
+};
 
-// Build unified contest API URLs
+// ----- unified contest API url builder -----
 const contestUrl = (action, params = {}) => {
   const qs = new URLSearchParams({ action, ...params });
   return `/api/contest?${qs.toString()}`;
 };
 
+// safe JSON to tolerate non‑JSON server errors
+async function safeJson(res){
+  const text = await res.text();
+  try { return JSON.parse(text); }
+  catch { return { _nonjson:true, text, status: res.status }; }
+}
+
+// admin header (only when on admin mode)
 const qs = new URLSearchParams(location.search);
 const isAdmin = qs.get("admin")==="1";
+const adminHeaders = () => (
+  isAdmin ? { 'x-az-admin-token': (localStorage.getItem('az-admin-token') || '').trim() } : {}
+);
 
+// ----- element refs -----
 const els = {
   status: $("#status"),
   submitBox: $("#submitBox"),
@@ -46,19 +62,17 @@ function setContestIdField(id){
   const el = document.getElementById("useContestId");
   if (el) {
     el.value = id || "";
-  
     el.dispatchEvent(new Event("input", { bubbles: true }));
   }
 }
 
-
-let active = null;   
-let entries = [];    
+let active = null;
+let entries = [];
 
 init().catch(err=>console.error(err));
 
 async function init(){
-  if (isAdmin) els.adminBox.style.display = "block";
+  if (isAdmin && els.adminBox) els.adminBox.style.display = "block";
   await refreshActive();
   wireEvents();
   if (active) await renderByStatus();
@@ -69,52 +83,55 @@ function wireEvents(){
   els.openBtn?.addEventListener("click", onOpen);
   els.startVotingBtn?.addEventListener("click", onStartVoting);
   els.closeBtn?.addEventListener("click", onClose);
+
   els.uploadFile?.addEventListener("change", () => {
-  if (els.uploadFile.files?.length) els.imgUrl.value = "";
-});
-els.imgUrl?.addEventListener("input", () => {
-  if (els.imgUrl.value.trim()) els.uploadFile.value = "";
-});
+    if (els.uploadFile.files?.length) els.imgUrl.value = "";
+  });
+  els.imgUrl?.addEventListener("input", () => {
+    if (els.imgUrl.value.trim()) els.uploadFile.value = "";
+  });
 
   els.voteGrid?.addEventListener("click", async (e)=>{
-  const btn = e.target.closest("button[data-entry]");
-  if (!btn) return;
+    const btn = e.target.closest("button[data-entry]");
+    if (!btn) return;
 
-  const entry = btn.dataset.entry;
-  const voter = (els.voterHandle.value || "").trim();
-  if (!voter) { toast("Enter your @handle first"); return; }
+    const entry = btn.dataset.entry;
+    const voter = (els.voterHandle.value || "").trim();
+    if (!voter) { toast("Enter your @handle first"); return; }
 
-  btn.disabled = true;
-  try {
-   const r = await fetch(contestUrl("vote"), {
-      method:"POST",
-      headers:{ "content-type":"application/json" },
-      body: JSON.stringify({ entry_id: entry, voter_handle: voter })
-    });
-    const j = await r.json();
+    btn.disabled = true;
+    try {
+      const r = await fetch(contestUrl("vote"), {
+        method:"POST",
+        headers:{ "content-type":"application/json" },
+        body: JSON.stringify({ entry_id: entry, voter_handle: voter })
+      });
+      const j = await safeJson(r);
 
-    if (!r.ok) {
-      toast(String(j?.error || "Vote failed"));
-      return;
+      if (!r.ok || j._nonjson) {
+        toast(String(j?.error || j.text || "Vote failed")); return;
+      }
+
+      toast(j.duplicate ? "Already voted" : "Voted!");
+      await renderLeaderboard();
+    } catch (err) {
+      toast(String(err));
+    } finally {
+      btn.disabled = false;
     }
-
-    toast(j.duplicate ? "Already voted" : "Voted!");
-    await renderLeaderboard();  
-  } catch (err) {
-    toast(String(err));
-  } finally {
-    btn.disabled = false;
-  }
-});
+  });
 }
 
 async function refreshActive(){
   const r = await fetch(contestUrl("active"));
-  const j = await r.json();
+  const j = await safeJson(r);
+  if (!r.ok || j._nonjson) {
+    toast(j.error || j.text || "Active API error"); return;
+  }
   active = j.contest || null;
-  els.status.innerHTML = renderStatus(active);
-  if (active) els.useContestId.value = active.id;
-   setContestIdField(active ? active.id : "");
+  if (els.status) els.status.innerHTML = renderStatus(active);
+  if (active && els.useContestId) els.useContestId.value = active.id;
+  setContestIdField(active ? active.id : "");
 }
 
 function renderStatus(c){
@@ -134,52 +151,48 @@ function renderStatus(c){
 }
 
 async function renderByStatus(){
- 
+  if (!els.submitBox || !els.entriesBox || !els.voteBox || !els.leaderBox) return;
+
   els.submitBox.style.display = "none";
   els.entriesBox.style.display = "none";
   els.voteBox.style.display = "none";
   els.leaderBox.style.display = "none";
 
- 
   entries = active ? await getEntries(active.id) : [];
-
   if (!active) return;
 
   if (active.status === "open"){
     els.submitBox.style.display = "block";
     els.entriesBox.style.display = "block";
-    els.entriesCount.textContent = `(${entries.length}/${active.submission_cap})`;
-    els.entriesGrid.innerHTML = entries.map(entryTile).join("");
-    els.submitHint.textContent = `One entry per handle.`;
+    if (els.entriesCount) els.entriesCount.textContent = `(${entries.length}/${active.submission_cap})`;
+    if (els.entriesGrid) els.entriesGrid.innerHTML = entries.map(entryTile).join("");
+    if (els.submitHint) els.submitHint.textContent = `One entry per handle.`;
 
-  
-const full = entries.length >= active.submission_cap;
+    const full = entries.length >= active.submission_cap;
+    if (els.submitBtn) els.submitBtn.disabled = full;
+    if (els.handle) els.handle.disabled = full;
+    if (els.imgUrl) els.imgUrl.disabled = full;
+    if (els.uploadFile) els.uploadFile.disabled = full;
+    if (els.memeId) els.memeId.disabled = full;
 
-
-els.submitBtn.disabled = full;
-els.handle.disabled = full;
-els.imgUrl.disabled = full;
-els.uploadFile && (els.uploadFile.disabled = full);
-els.memeId && (els.memeId.disabled = full);
-
-
-els.submitHint.textContent = full
-  ? "Submission cap reached — entries are closed."
-  : "One entry per handle.";
+    if (els.submitHint) els.submitHint.textContent = full
+      ? "Submission cap reached — entries are closed."
+      : "One entry per handle.";
   }
   else if (active.status === "voting"){
     els.voteBox.style.display = "block";
-    els.voteGrid.innerHTML = entries.map(voteTile).join("");
+    if (els.voteGrid) els.voteGrid.innerHTML = entries.map(voteTile).join("");
     await renderLeaderboard();
   }
   else if (active.status === "closed"){
-    await renderLeaderboard(); 
+    await renderLeaderboard();
   }
 }
 
 async function getEntries(contest_id){
   const r = await fetch(contestUrl("entries", { contest_id }));
-  const j = await r.json();
+  const j = await safeJson(r);
+  if (!r.ok || j._nonjson) { toast(j.error || j.text || "Entries API error"); return []; }
   return j.items || [];
 }
 
@@ -212,45 +225,45 @@ async function renderLeaderboard(){
   if (!active) return;
   els.leaderBox.style.display = "block";
   const r = await fetch(contestUrl("leaderboard", { contest_id: active.id }));
-  const j = await r.json();
+  const j = await safeJson(r);
+  if (!r.ok || j._nonjson) { toast(j.error || j.text || "Leaderboard API error"); return; }
   const items = j.items || [];
-  els.leaderGrid.innerHTML = items.map((e,i)=>{
-    const m = e.memes;
-    return `
-      <article class="tile">
-        <img src="${m.img_url}" alt="entry by @${e.submitter_handle}">
-        <div class="meta">
-          <span>#${i+1} • @${e.submitter_handle}</span>
-          <span class="muted">${e.votes} votes</span>
-        </div>
-      </article>
-    `;
-  }).join("");
+  if (els.leaderGrid) {
+    els.leaderGrid.innerHTML = items.map((e,i)=>{
+      const m = e.memes;
+      return `
+        <article class="tile">
+          <img src="${m.img_url}" alt="entry by @${e.submitter_handle}">
+          <div class="meta">
+            <span>#${i+1} • @${e.submitter_handle}</span>
+            <span class="muted">${e.votes} votes</span>
+          </div>
+        </article>
+      `;
+    }).join("");
+  }
 }
-
 
 async function onSubmit(){
   if (!active) { toast("No open contest"); return; }
-   if (entries.length >= active.submission_cap) {
-    toast("Submission cap reached — entries are closed.");
-    return;
+  if (entries.length >= active.submission_cap) {
+    toast("Submission cap reached — entries are closed."); return;
   }
 
-  let handle = (els.handle.value || "").trim();
-  const url    = (els.imgUrl.value || "").trim();
-  const file   = els.uploadFile?.files?.[0] || null;
+  let handle = (els.handle?.value || "").trim();
+  const url  = (els.imgUrl?.value || "").trim();
+  const file = els.uploadFile?.files?.[0] || null;
 
   if (!handle) { toast("Enter your @handle"); return; }
-  if (!handle.startsWith("@")) handle = "@"+handle;       
+  if (!handle.startsWith("@")) handle = "@"+handle;
   if (!url && !file) { toast("Add an image URL or choose a file"); return; }
 
-  els.submitBtn.disabled = true;
+  els.submitBtn && (els.submitBtn.disabled = true);
   try {
     let finalUrl = url;
 
-  
     if (file) {
-      const MAX = 3 * 1024 * 1024;
+      const MAX = 6 * 1024 * 1024; // 6MB consistent
       if (file.size > MAX) { toast("Image too large (max 6MB)"); return; }
 
       const dataUrl = await new Promise((resolve, reject) => {
@@ -265,107 +278,97 @@ async function onSubmit(){
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ handle, imageBase64: dataUrl })
       });
-      const uj = await up.json();
-
-      if (!up.ok || !uj.ok) {
-        toast(uj?.error || "Upload failed");
-        return;
+      const uj = await safeJson(up);
+      if (!up.ok || uj._nonjson || !uj.ok) {
+        toast(uj?.error || uj.text || "Upload failed"); return;
       }
-
-     
       finalUrl = uj.url || uj.meme?.img_url;
       if (!finalUrl) { toast("Upload failed: no URL returned"); return; }
     }
 
-
-const r = await fetch(contestUrl("submit"), {
-  method: "POST",
-  headers: { "content-type": "application/json" },
-  body: JSON.stringify({ contest_id: active?.id, handle, imgUrl: finalUrl })
-});
-    const j = await r.json();
-    if (!r.ok) { toast(j?.error || "Submit failed"); return; }
+    const r = await fetch(contestUrl("submit"), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ contest_id: active?.id, handle, imgUrl: finalUrl })
+    });
+    const j = await safeJson(r);
+    if (!r.ok || j._nonjson) { toast(j?.error || j.text || "Submit failed"); return; }
 
     toast(j.duplicate ? "Already submitted" : "Submitted!");
     // reset
-    els.handle.value = "";
-    els.imgUrl.value = "";
+    if (els.handle) els.handle.value = "";
+    if (els.imgUrl) els.imgUrl.value = "";
     if (els.uploadFile) els.uploadFile.value = "";
     await refreshActive();
     await renderByStatus();
   } finally {
-    els.submitBtn.disabled = false;
+    els.submitBtn && (els.submitBtn.disabled = false);
   }
 }
 
 async function onOpen(){
-  const title = (els.newTitle.value || "").trim();
-  const cap   = Number(els.newCap.value || 10);
+  const title = (els.newTitle?.value || "").trim();
+  const cap   = Number(els.newCap?.value || 10);
   if (!title) { toast("title required"); return; }
 
-
-const r = await fetch(contestUrl("open"), {
-  method: "POST",
-  headers: { "content-type": "application/json" },
-  body: JSON.stringify({ title, submission_cap: cap })
-});
-  const j = await r.json();
-  if (!r.ok){ toast(j.error || "Open failed"); return; }
+  const r = await fetch(contestUrl("open"), {
+    method: "POST",
+    headers: { "content-type": "application/json", ...adminHeaders() },
+    body: JSON.stringify({ title, submission_cap: cap })
+  });
+  const j = await safeJson(r);
+  if (!r.ok || j._nonjson){ toast(j.error || j.text || "Open failed"); return; }
 
   toast("Contest opened");
-  els.newTitle.value = ""; els.newCap.value = "";
+  if (els.newTitle) els.newTitle.value = "";
+  if (els.newCap) els.newCap.value = "";
 
-  await refreshActive();                   
-  if (j.contest?.id) setContestIdField(j.contest.id); 
+  await refreshActive();
+  if (j.contest?.id) setContestIdField(j.contest.id);
 }
 
 async function getActiveId() {
- 
   if (active?.id) return active.id;
-
-  
   try {
-const r = await fetch(contestUrl("active"));
-    const j = await r.json();
+    const r = await fetch(contestUrl("active"));
+    const j = await safeJson(r);
+    if (!r.ok || j._nonjson) return "";
     if (j?.contest?.id) {
       active = j.contest;
-      
       const f = document.getElementById('useContestId');
       if (f) f.value = active.id;
       return active.id;
     }
-  } catch (_) {}
+  } catch {}
   return "";
 }
 
 async function onStartVoting() {
-  const id = await getActiveId();           
+  const id = await getActiveId();
   if (!id) { toast("No active contest id"); return; }
 
-
-const r = await fetch(contestUrl("start-voting"), {
-  method: "POST",
-  headers: { "content-type": "application/json" },
-  body: JSON.stringify({ contest_id: id })
-});
-  const j = await r.json();
-  if (!r.ok) { toast(j.error || "Failed"); return; }
+  const r = await fetch(contestUrl("start-voting"), {
+    method: "POST",
+    headers: { "content-type": "application/json", ...adminHeaders() },
+    body: JSON.stringify({ contest_id: id })
+  });
+  const j = await safeJson(r);
+  if (!r.ok || j._nonjson) { toast(j.error || j.text || "Failed"); return; }
   toast("Voting started");
   await refreshActive(); await renderByStatus();
 }
 
 async function onClose() {
-  const id = await getActiveId();            
+  const id = await getActiveId();
   if (!id) { toast("No active contest id"); return; }
 
-
-const r = await fetch(contestUrl("close"), {
-  method: "POST",
-  headers: { "content-type": "application/json" },
-  body: JSON.stringify({ contest_id: id })
-});
-  const j = await r.json();
-  if (!r.ok) { toast(j.error || "Close failed"); return; }
+  const r = await fetch(contestUrl("close"), {
+    method: "POST",
+    headers: { "content-type": "application/json", ...adminHeaders() },
+    body: JSON.stringify({ contest_id: id })
+  });
+  const j = await safeJson(r);
+  if (!r.ok || j._nonjson) { toast(j.error || j.text || "Close failed"); return; }
   toast("Closed. Winner picked!");
   await refreshActive(); await renderByStatus();
 }
