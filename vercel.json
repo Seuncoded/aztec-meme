@@ -1,6 +1,6 @@
 {
   "rewrites": [
-    { "source": "/api/contest/:path*", "destination": "/api/contest" }
-  ],
-   "version": 2
+    { "source": "/api/contest/:action", "destination": "/api/contest?action=:action" },
+    { "source": "/api/contest/:action/:rest*", "destination": "/api/contest?action=:action" }
+  ]
 }
