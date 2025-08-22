@@ -1,14 +1,12 @@
-// api/_supabase_admin.js
+// /api/_supabase_admin.js
 import { createClient } from "@supabase/supabase-js";
 
-const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-const service = process.env.SUPABASE_SERVICE_ROLE;
+const URL = process.env.SUPABASE_URL;
+const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE; // <- service key
 
-if (!url || !service) {
+if (!URL || !SERVICE_ROLE) {
   throw new Error("Admin Supabase env missing (URL or SERVICE_ROLE).");
 }
 
-const sbAdmin = createClient(url, service, { auth: { persistSession: false } });
-
+export const sbAdmin = createClient(URL, SERVICE_ROLE, { auth: { persistSession: false } });
 export default sbAdmin;
-export { sbAdmin };
