@@ -1,49 +1,52 @@
 // /api/submit-meme.js
-import { sbAdmin } from "./_supabase_admin.js";
+import * as Admin from "./_supabase_admin.js";
 
+const sbAdmin =
+  Admin.sbAdmin || Admin.supabaseAdmin || Admin.client || Admin.default;
 
-async function handler(req, res) {
+export default async function handler(req, res) {
+  res.setHeader("content-type", "application/json");
   try {
-    const body = await readJSON(req);
-    const handle = String(body?.handle || "").replace(/^@+/, "").trim().toLowerCase();
-    const imgUrl = String(body?.imgUrl || "").trim();
+    if (req.method !== "POST")
+      return send(res, 405, { error: "Method not allowed" });
 
-    if (!handle || !imgUrl) return send(res, 400, { ok: false, error: "handle and imgUrl required" });
+    const body = await readJson(req);
+    let { handle, imgUrl } = body || {};
 
-    const { data, error } = await sbAdmin
+    handle = String(handle || "").trim().replace(/^@+/, "").toLowerCase();
+    imgUrl = String(imgUrl || "").trim();
+    if (!handle || !imgUrl) {
+      return send(res, 400, { error: "handle and imgUrl required" });
+    }
+
+    // try insert; on unique violation, respond as duplicate
+    const ins = await sbAdmin
       .from("memes")
       .insert([{ handle, img_url: imgUrl }])
       .select()
       .maybeSingle();
 
-    if (error) {
-      const msg = String(error.message || "");
-    
-      if (msg.includes("duplicate key value") || msg.includes("23505")) {
-        return send(res, 200, { ok: true, duplicate: true, meme: { handle, img_url: imgUrl } });
-      }
-      return send(res, 400, { ok: false, error: msg });
+    if (ins.error) {
+      const msg = String(ins.error.message || "");
+      const isDup = msg.includes("duplicate key value") || msg.includes("23505");
+      if (isDup) return send(res, 200, { ok: true, duplicate: true });
+      return send(res, 400, { error: msg || "insert failed" });
     }
 
-    return send(res, 200, { ok: true, meme: data });
+    return send(res, 200, { ok: true, meme: ins.data });
   } catch (e) {
-    return send(res, 500, { ok: false, error: "server error" });
+    return send(res, 500, { error: "server error" });
   }
 }
 
-
-function send(res, status, body) {
-  res.statusCode = status;
-  res.setHeader("content-type", "application/json");
-  res.end(JSON.stringify(body));
-}
-async function readJSON(req) {
+async function readJson(req) {
   if (req.body && typeof req.body === "object") return req.body;
   const chunks = [];
   for await (const c of req) chunks.push(c);
   const raw = Buffer.concat(chunks).toString("utf8");
   return raw ? JSON.parse(raw) : {};
 }
-
-export default handler;
-export const POST = handler;
+function send(res, code, obj) {
+  res.statusCode = code;
+  res.end(JSON.stringify(obj));
+}

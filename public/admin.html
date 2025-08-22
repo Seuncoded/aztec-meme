@@ -76,140 +76,54 @@
   </div>
 
   <script>
-  
-    const $ = (s, r=document)=>r.querySelector(s);
+const $ = s => document.querySelector(s);
+const out = $("#out");
+const tokenInput = $("#adminToken"); // whatever your input id is
 
-    const els = {
-      tokenInput: $("#tokenInput"),
-      saveTokenBtn: $("#saveTokenBtn"),
-      tokenStatus: $("#tokenStatus"),
+function authHeaders() {
+  const t = (localStorage.getItem("az-admin-token") || "").trim();
+  return t ? { "x-az-admin-token": t } : {};
+}
 
-      activeTitle: $("#activeTitle"),
-      activeStatus: $("#activeStatus"),
-      activeCap: $("#activeCap"),
-      contestId: $("#contestId"),
+// Check status
+async function checkStatus(){
+  const r = await fetch("/api/contest/active", { headers: authHeaders() });
+  const j = await r.json().catch(()=>({error:"Invalid JSON response"}));
+  out.textContent = JSON.stringify(j, null, 2);
+}
 
-      titleInput: $("#titleInput"),
-      capInput: $("#capInput"),
-      openBtn: $("#openBtn"),
+// Open
+async function openContest(title, cap){
+  const r = await fetch("/api/contest/open", {
+    method: "POST",
+    headers: { "content-type":"application/json", ...authHeaders() },
+    body: JSON.stringify({ title, submission_cap: Number(cap)||10 })
+  });
+  const j = await r.json().catch(()=>({error:"Invalid JSON response"}));
+  out.textContent = JSON.stringify(j, null, 2);
+}
 
-      startVotingBtn: $("#startVotingBtn"),
-      closeBtn: $("#closeBtn"),
-      checkBtn: $("#checkBtn"),
+// Start voting
+async function startVoting(contest_id){
+  const r = await fetch("/api/contest/start-voting", {
+    method: "POST",
+    headers: { "content-type":"application/json", ...authHeaders() },
+    body: JSON.stringify({ contest_id })
+  });
+  const j = await r.json().catch(()=>({error:"Invalid JSON response"}));
+  out.textContent = JSON.stringify(j, null, 2);
+}
 
-      resultBox: $("#resultBox"),
-    };
-
-    function adminHeaders() {
-      const t = localStorage.getItem("az-admin-token") || "";
-      return t ? { "x-admin-token": t } : {};
-    }
-    function show(obj){ els.resultBox.textContent = JSON.stringify(obj, null, 2); }
-
-    async function fetchJSON(url, opts={}) {
-      const res = await fetch(url, opts);
-      let data;
-      try { data = await res.json(); } catch { data = { error:"Invalid JSON response" }; }
-      if (!res.ok) throw data;
-      return data;
-    }
-
-
-    async function loadActive() {
-      try {
-        const j = await fetchJSON("/api/contest/active");
-        const c = j.contest || null;
-        if (!c) {
-          els.activeTitle.textContent = "No active contest";
-          els.activeStatus.textContent = "—";
-          els.activeCap.textContent = "—";
-          els.contestId.value = "";
-          show(j);
-          return null;
-        }
-        els.activeTitle.textContent = c.title;
-        els.activeStatus.textContent = c.status;
-        els.activeCap.textContent = c.submission_cap ?? "—";
-        els.contestId.value = c.id;                 // <-- autofill here
-        show(j);
-        return c;
-      } catch (e) {
-        show(e);
-        return null;
-      }
-    }
-
-    async function getActiveId() {
-      if (els.contestId.value) return els.contestId.value;
-      const c = await loadActive();
-      return c?.id || "";
-    }
-
-   
-    function refreshTokenStatus(){
-      const t = localStorage.getItem("az-admin-token") || "";
-      els.tokenStatus.textContent = t ? `Token saved (${t.slice(0,6)}…${t.slice(-4)})` : "No token saved";
-    }
-    els.saveTokenBtn.addEventListener("click", () => {
-      const t = (els.tokenInput.value || "").trim();
-      if (!t) { alert("Paste a token first"); return; }
-      localStorage.setItem("az-admin-token", t);
-      els.tokenInput.value = "";
-      refreshTokenStatus();
-    });
-
-   
-    els.openBtn.addEventListener("click", async () => {
-      const title = (els.titleInput.value || "").trim();
-      const cap = Number(els.capInput.value || "0");
-      if (!title || !cap) { show({ error:"title and cap required" }); return; }
-
-      try {
-        const j = await fetchJSON("/api/contest/open", {
-          method:"POST",
-          headers:{ "content-type":"application/json", ...adminHeaders() },
-          body: JSON.stringify({ title, submission_cap: cap })
-        });
-        show(j);
-        els.titleInput.value = "";
-        els.capInput.value = "";
-        await loadActive(); 
-      } catch (e) { show(e); }
-    });
-
-    els.startVotingBtn.addEventListener("click", async () => {
-      const id = await getActiveId();
-      if (!id) { show({ error:"contest_id required" }); return; }
-      try {
-        const j = await fetchJSON("/api/contest/start-voting", {
-          method:"POST",
-          headers:{ "content-type":"application/json", ...adminHeaders() },
-          body: JSON.stringify({ contest_id: id })
-        });
-        show(j);
-        await loadActive();
-      } catch (e) { show(e); }
-    });
-
-    els.closeBtn.addEventListener("click", async () => {
-      const id = await getActiveId();
-      if (!id) { show({ error:"contest_id required" }); return; }
-      try {
-        const j = await fetchJSON("/api/contest/close", {
-          method:"POST",
-          headers:{ "content-type":"application/json", ...adminHeaders() },
-          body: JSON.stringify({ contest_id: id })
-        });
-        show(j);
-        await loadActive();
-      } catch (e) { show(e); }
-    });
-
-    els.checkBtn.addEventListener("click", loadActive);
-
-    
-    refreshTokenStatus();
-    loadActive();
-  </script>
+// Close
+async function closeContest(contest_id){
+  const r = await fetch("/api/contest/close", {
+    method: "POST",
+    headers: { "content-type":"application/json", ...authHeaders() },
+    body: JSON.stringify({ contest_id })
+  });
+  const j = await r.json().catch(()=>({error:"Invalid JSON response"}));
+  out.textContent = JSON.stringify(j, null, 2);
+}
+</script>
 </body>
 </html>
