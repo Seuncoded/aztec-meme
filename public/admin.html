@@ -1,84 +1,174 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Aztec Memes — Admin</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="icon" type="image/svg+xml"
-    href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="%236f6ce8"/><rect x="18" y="18" width="28" height="28" rx="6" fill="%23ffffff"/></svg>' />
-
-  <style>
-    :root { --bg:#0a0f18; --card:#0f1730; --ink:#e9ecff; --muted:#9badff; --line:#273264; --btn:#6f6ce8; }
-    *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial}
-    .wrap{max-width:920px;margin:26px auto;padding:0 16px}
-    .title{font-weight:900;font-size:26px;margin-bottom:12px}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:12px}
-    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-    .input{height:44px;border-radius:10px;padding:0 12px;border:1px solid var(--line);background:#0f1738;color:var(--ink)}
-    .btn{background:var(--btn);border:0;color:#fff;border-radius:10px;padding:10px 14px;font-weight:900;cursor:pointer}
-    .btn:disabled{opacity:.6;cursor:not-allowed}
-    .pill{border:1px solid var(--line);border-radius:999px;padding:6px 10px;background:#0f1832;color:var(--muted)}
-    .muted{color:var(--muted)}
-    pre{white-space:pre-wrap;word-break:break-word;background:#0b1330;border:1px solid var(--line);padding:12px;border-radius:10px}
-  </style>
+<meta charset="utf-8" />
+<title>Memes Contest — Admin</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+:root { --bg:#0a0f18; --card:#0f1730; --ink:#e9ecff; --muted:#9badff; --line:#273264; --btn:#6f6ce8; }
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial}
+.wrap{max-width:920px;margin:26px auto;padding:0 16px}
+.title{font-weight:900;font-size:28px;margin-bottom:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:12px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.input{height:44px;border-radius:10px;padding:0 12px;border:1px solid var(--line);background:#0f1738;color:var(--ink)}
+.btn{background:var(--btn);border:0;color:#fff;border-radius:10px;padding:10px 14px;font-weight:900;cursor:pointer}
+.btn:disabled{opacity:.6;cursor:not-allowed}
+.pill{border:1px solid var(--line);border-radius:999px;padding:6px 10px;background:#0f1832;color:var(--muted)}
+.muted{color:var(--muted)}
+pre{white-space:pre-wrap;word-break:break-word;background:#0b1330;border:1px solid var(--line);padding:12px;border-radius:10px}
+</style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="title">🛠️ Memes Contest — Admin</div>
+<div class="wrap">
+  <div class="title">🛠️ Memes Contest — Admin</div>
 
-    <!-- Token -->
-    <div class="card">
+  <div class="card">
+    <div class="row">
+      <input id="adminToken" class="input" style="flex:1" placeholder="Paste admin token…" />
+      <button id="saveTokenBtn" class="btn">Save Token</button>
+      <span id="adminStatus" class="muted"></span>
+    </div>
+    <div class="muted" style="margin-top:6px">Tip: token is stored as <code>localStorage["az-admin-token"]</code> on this browser.</div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <div id="activeTitle" class="pill">No active contest</div>
       <div class="row">
-        <input id="adminToken" class="input" style="flex:1" placeholder="Paste admin token…" />
-        <button id="saveTokenBtn" class="btn" type="button">Save Token</button>
-        <span id="tokenStatus" class="muted"></span>
-      </div>
-      <div class="muted" style="margin-top:6px">
-        Tip: token is stored as <code>localStorage["az-admin-token"]</code> on this browser.
+        <span class="pill">status: <strong id="activeStatus">—</strong></span>
+        <span class="pill">cap: <strong id="activeCap">—</strong></span>
       </div>
     </div>
-
-    <!-- Status -->
-    <div class="card" id="statusCard">
-      <div class="row" style="justify-content:space-between">
-        <div id="activeTitle" class="pill">No active contest</div>
-        <div class="row">
-          <span class="pill">status: <strong id="activeStatus">—</strong></span>
-          <span class="pill">cap: <strong id="activeCap">—</strong></span>
-        </div>
-      </div>
-      <div class="row" style="margin-top:8px">
-        <input id="activeContestId" class="input" style="flex:1" readonly placeholder="contest_id will appear here automatically" />
-        <button id="checkStatusBtn" class="btn" type="button">Check Status</button>
-      </div>
-    </div>
-
-    <!-- Open -->
-    <div class="card">
-      <div class="row">
-        <input id="newTitle" class="input" style="flex:1" placeholder="Contest title (e.g., Week 34)" />
-        <input id="newCap" class="input" type="number" min="1" placeholder="Max entries (e.g., 10)" style="width:180px" />
-        <button id="openBtn" class="btn" type="button">Open Contest</button>
-      </div>
-    </div>
-
-    <!-- Transitions -->
-    <div class="card">
-      <div class="row">
-        <button id="startVotingBtn" class="btn" type="button">Start Voting</button>
-        <button id="closeBtn" class="btn" type="button">Close Contest</button>
-      </div>
-    </div>
-
-    <!-- Log -->
-    <div class="card">
-      <pre id="adminStatus" class="muted">Ready.</pre>
-      <div class="muted">Only you can see this page. Don’t share your token.</div>
+    <div class="row" style="margin-top:8px">
+      <input id="activeId" class="input" style="flex:1" readonly placeholder="contest_id will appear here automatically" />
+      <button id="checkBtn" class="btn">Check Status</button>
     </div>
   </div>
 
-  <!-- Hook up behavior -->
-  <script src="/admin.js" defer></script>
+  <div class="card">
+    <div class="row">
+      <input id="titleInput" class="input" style="flex:1" placeholder="Contest title (e.g., Week 34)" />
+      <input id="capInput" class="input" type="number" min="1" placeholder="Max entries (e.g., 10)" style="width:180px" />
+      <button id="openBtn" class="btn">Open Contest</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <button id="startVotingBtn" class="btn">Start Voting</button>
+      <button id="closeBtn" class="btn">Close Contest</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <pre id="resultBox" class="muted">Ready.</pre>
+    <div class="muted">Only you can see this page. Don’t share your token.</div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = (s,r=document)=>r.querySelector(s);
+  const contestUrl = (action, params={}) => {
+    const qs = new URLSearchParams({ action, ...params });
+    return '/api/contest?'+qs.toString();
+  };
+  const els = {
+    token: $('#adminToken'),
+    save:  $('#saveTokenBtn'),
+    statusText: $('#adminStatus'),
+    activeTitle: $('#activeTitle'),
+    activeStatus: $('#activeStatus'),
+    activeCap: $('#activeCap'),
+    activeId: $('#activeId'),
+    check: $('#checkBtn'),
+    title: $('#titleInput'),
+    cap: $('#capInput'),
+    open: $('#openBtn'),
+    start: $('#startVotingBtn'),
+    close: $('#closeBtn'),
+    out: $('#resultBox'),
+  };
+
+  // Save token + prime input
+  const saved = localStorage.getItem('az-admin-token') || '';
+  if (saved) els.token.value = saved;
+  els.save.onclick = () => {
+    const v = (els.token.value||'').trim();
+    if (!v) { els.statusText.textContent = 'No token entered'; return; }
+    localStorage.setItem('az-admin-token', v);
+    els.statusText.textContent = `Token saved (${v.slice(0,6)}…${v.slice(-4)})`;
+  };
+
+  // Always attach token header for POSTs to /api/contest
+  async function post(action, body){
+    const t = localStorage.getItem('az-admin-token') || '';
+    const r = await fetch(contestUrl(action), {
+      method:'POST',
+      headers: { 'content-type':'application/json', 'x-az-admin-token': t },
+      body: JSON.stringify(body||{})
+    });
+    const text = await r.text();
+    let j; try{ j = JSON.parse(text) } catch { j = { error:'Non-JSON response', raw:text }}
+    return { ok:r.ok, json:j };
+  }
+  async function get(action, params){
+    const r = await fetch(contestUrl(action, params||{}), { cache:'no-store' });
+    const text = await r.text();
+    let j; try{ j = JSON.parse(text) } catch { j = { error:'Non-JSON response', raw:text }}
+    return { ok:r.ok, json:j };
+  }
+  function show(o){ els.out.textContent = JSON.stringify(o, null, 2); }
+
+  async function refresh(){
+    const { ok, json } = await get('active');
+    if (!ok) { show(json); return; }
+    const c = json.contest;
+    if (!c){
+      els.activeTitle.textContent = 'No active contest';
+      els.activeStatus.textContent = '—';
+      els.activeCap.textContent = '—';
+      els.activeId.value = '';
+      show({ contest:null });
+      return;
+    }
+    els.activeTitle.textContent = c.title || '(untitled)';
+    els.activeStatus.textContent = c.status;
+    els.activeCap.textContent = c.submission_cap ?? '—';
+    els.activeId.value = c.id || '';
+    show(json);
+  }
+
+  els.check.onclick = refresh;
+
+  els.open.onclick = async () => {
+    const title = (els.title.value||'').trim();
+    const cap = Number(els.cap.value||10);
+    if (!title) { show({error:'title required'}); return; }
+    const { ok, json } = await post('open', { title, submission_cap: cap });
+    show(json);
+    await refresh();
+  };
+
+  els.start.onclick = async () => {
+    const id = els.activeId.value.trim();
+    if (!id) { show({error:'No active contest id'}); return; }
+    const { ok, json } = await post('start-voting', { contest_id: id });
+    show(json);
+    await refresh();
+  };
+
+  els.close.onclick = async () => {
+    const id = els.activeId.value.trim();
+    if (!id) { show({error:'No active contest id'}); return; }
+    const { ok, json } = await post('close', { contest_id: id });
+    show(json);
+    await refresh();
+  };
+
+  refresh();
+})();
+</script>
 </body>
 </html>
