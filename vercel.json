@@ -1,1 +1,6 @@
-{ "version": 2 }
+{
+  "rewrites": [
+    { "source": "/api/contest/:path*", "destination": "/api/contest" }
+  ],
+   "version": 2
+}
