@@ -187,7 +187,7 @@ input, button { font-size:16px; }
   gap: 4px;
   box-shadow: 0 6px 18px rgba(0,0,0,.18);
   transition: transform .15s ease, filter .15s ease, box-shadow .15s ease;
-  text-decoration: none;               /* ensure no underline */
+  text-decoration: none;               
 }
 .by:hover{ transform: translateY(-1px); filter: brightness(1.06); }
 .by:focus-visible{ outline: 2px solid #aab0ff; outline-offset: 2px; }
@@ -243,12 +243,12 @@ input, button { font-size:16px; }
 .fade-out { opacity:.2; transition: opacity .18s ease; }
 .fade-in  { opacity:1;  transition: opacity .18s ease; }
 
-/* optional: subtle glow for winners */
+
 #winnersGrid .tile {
   box-shadow: 0 0 0 1px #33407a, 0 10px 26px rgba(0,0,0,.35);
 }
 
-/* Winners strip tweaks */
+
 #winnersBox .grid {
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
 }
@@ -266,7 +266,7 @@ input, button { font-size:16px; }
   border:1px solid #273264; background:#0f1832; color:#cfd6ff; font-weight:800;
 }
 
-/* --- Unified submit row (handle + url + file + button) --- */
+
 .controls--unified{
   grid-template-columns: 220px 1fr 280px auto;
   align-items: center;
@@ -292,7 +292,7 @@ input, button { font-size:16px; }
   box-shadow:0 8px 18px rgba(111,108,232,.25);
 }
 
-/* --- Winner Section --- */
+
 #winnersBox {
   max-width: 520px;
   margin: 36px auto 28px;
@@ -322,7 +322,7 @@ input, button { font-size:16px; }
   font-size: 26px;
   font-weight: 900;
   letter-spacing: .2px;
-  background: linear-gradient(90deg, #00ffe7, #00b3ff); /* cyan–teal gradient */
+  background: linear-gradient(90deg, #00ffe7, #00b3ff); 
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -334,7 +334,7 @@ input, button { font-size:16px; }
   opacity: .9;
 }
 
-/* Winner meme card (hugging content) */
+
 #winnersGrid {
   display: inline-block;
   max-width: 480px;
@@ -358,13 +358,13 @@ input, button { font-size:16px; }
   transform: translateY(-3px);
 }
 
-/* Small fade-up animation */
+
 @keyframes fadeInUp {
   from { transform: translateY(20px); opacity: 0; }
   to   { transform: translateY(0); opacity: 1; }
 }
 
-/* --- Contest CTA (centered, glossy, animated) --- */
+
 #contestCta{
   display:inline-flex;
   align-items:center;
@@ -374,8 +374,8 @@ input, button { font-size:16px; }
   font-weight:900;
   letter-spacing:.2px;
   text-decoration:none;
-  color:#08111f;                      /* dark ink on light button */
-  background: linear-gradient(135deg,#ffd865,#ffb43a); /* golden */
+  color:#08111f;                      
+  background: linear-gradient(135deg,#ffd865,#ffb43a); 
   border:1px solid rgba(255,255,255,.25);
   box-shadow:
     0 8px 22px rgba(255, 178, 58, .35),
@@ -384,7 +384,7 @@ input, button { font-size:16px; }
   transition: transform .18s ease, filter .18s ease, box-shadow .18s ease;
 }
 
-/* subtle float */
+
 #contestCta { animation: floaty 4s ease-in-out infinite; }
 @keyframes floaty{
   0%,100%{ transform: translateY(0) }
@@ -396,7 +396,7 @@ input, button { font-size:16px; }
   filter: drop-shadow(0 0 6px rgba(255,215,0,.45));
 }
 
-/* glossy sweep on hover */
+
 #contestCta::after{
   content:"";
   position:absolute; inset:0;
@@ -418,7 +418,7 @@ input, button { font-size:16px; }
 }
 #contestCta:active{ transform: translateY(1px) }
 
-/* focus ring for accessibility */
+
 #contestCta:focus-visible{
   outline:2px solid #ffe29a;
   outline-offset:3px;
@@ -427,12 +427,12 @@ input, button { font-size:16px; }
     0 12px 30px rgba(255,178,58,.42);
 }
 
-/* keep it tidy on small screens */
+
 @media (max-width:640px){
   #contestCta{ padding:11px 16px; font-size:14px }
 }
 
-/* Vote CTA (teal) */
+
 #voteCta{
   display:inline-flex;
   align-items:center;

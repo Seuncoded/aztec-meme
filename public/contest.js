@@ -6,27 +6,27 @@ const toast = (m)=>{ const t=$("#toast"); if(!t) return;
   t.textContent=m; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"), 2000);
 };
 
-// ----- unified contest API url builder -----
+
 const contestUrl = (action, params = {}) => {
   const qs = new URLSearchParams({ action, ...params });
   return `/api/contest?${qs.toString()}`;
 };
 
-// safe JSON to tolerate non‑JSON server errors
+
 async function safeJson(res){
   const text = await res.text();
   try { return JSON.parse(text); }
   catch { return { _nonjson:true, text, status: res.status }; }
 }
 
-// admin header (only when on admin mode)
+
 const qs = new URLSearchParams(location.search);
 const isAdmin = qs.get("admin")==="1";
 const adminHeaders = () => (
   isAdmin ? { 'x-az-admin-token': (localStorage.getItem('az-admin-token') || '').trim() } : {}
 );
 
-// ----- element refs -----
+
 const els = {
   status: $("#status"),
   submitBox: $("#submitBox"),
@@ -263,7 +263,7 @@ async function onSubmit(){
     let finalUrl = url;
 
     if (file) {
-      const MAX = 6 * 1024 * 1024; // 6MB consistent
+      const MAX = 6 * 1024 * 1024; 
       if (file.size > MAX) { toast("Image too large (max 6MB)"); return; }
 
       const dataUrl = await new Promise((resolve, reject) => {
@@ -295,7 +295,7 @@ async function onSubmit(){
     if (!r.ok || j._nonjson) { toast(j?.error || j.text || "Submit failed"); return; }
 
     toast(j.duplicate ? "Already submitted" : "Submitted!");
-    // reset
+   
     if (els.handle) els.handle.value = "";
     if (els.imgUrl) els.imgUrl.value = "";
     if (els.uploadFile) els.uploadFile.value = "";

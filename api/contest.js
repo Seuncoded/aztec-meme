@@ -1,6 +1,4 @@
-// api/contest.js
-// Single, robust entrypoint for all contest actions.
-// Supports both /api/contest?action=<action> and /api/contest/<action>
+
 
 import * as Pub from "./_supabase.js";
 import * as Admin from "./_supabase_admin.js";
@@ -10,10 +8,9 @@ function normalizeUrl(u) {
     const s = String(u || "").trim();
     if (!s) return "";
     const url = new URL(s);
-    // Keep origin+path; drop hash. If you want to keep queries, comment next line.
+    
     url.hash = "";
-    // If you want to drop all queries (strongest dedupe), uncomment:
-    // url.search = "";
+ 
     return url.toString();
   } catch {
     return String(u || "").trim();
@@ -26,14 +23,14 @@ const sbAdmin =
   Admin.sbAdmin || Admin.supabaseAdmin || Admin.client || Admin.default;
 
 export default async function handler(req, res) {
-  // Always JSON responses
+ 
   if (!res.headersSent) res.setHeader("content-type", "application/json");
 
   try {
     const url = new URL(req.url, "http://x");
     const action = resolveAction(url, req.method);
 
-    // ---------- GET ----------
+ 
     if (req.method === "GET") {
       if (action === "active")       return getActive(res);
       if (action === "entries")      return getEntries(res, url);
@@ -42,7 +39,7 @@ export default async function handler(req, res) {
       return send(res, 404, { error: "Not found" });
     }
 
-    // ---------- POST ----------
+   
     const body = await readJson(req);
 
     if (action === "open") {
@@ -67,10 +64,10 @@ export default async function handler(req, res) {
   }
 }
 
-/* ---------------- helpers ---------------- */
+
 
 function resolveAction(url, method) {
-  // support /api/contest/<action>  and  /api/contest?action=<action>
+
   const after = url.pathname.replace(/^\/api\/contest\/?/, "");
   const seg = after.split("/").filter(Boolean)[0] || "";
   const q = (url.searchParams.get("action") || "").toLowerCase();
@@ -100,7 +97,7 @@ function requireAdmin(req) {
   return Boolean(need && got === need);
 }
 
-/* ---------------- GET handlers ---------------- */
+
 
 async function getActive(res) {
   const { data, error } = await sb
@@ -135,13 +132,13 @@ async function getEntries(res, url) {
 async function getLeaderboard(res, url) {
   let contest_id = url.searchParams.get("contest_id") || "";
 
-  // If not provided, pick the latest voting/open contest (voting first)
+
   if (!contest_id) {
     const { data: c1, error: e1 } = await sb
       .from("contests")
       .select("id,status,created_at")
       .in("status", ["voting", "open"])
-      .order("status", { ascending: true })      // voting before open
+      .order("status", { ascending: true })      
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -150,7 +147,7 @@ async function getLeaderboard(res, url) {
     contest_id = c1.id;
   }
 
-  // Pull votes array and count in JS (robust across Supabase versions)
+  
   const { data: rows, error: e2 } = await sb
     .from("contest_entries")
     .select(`
@@ -178,7 +175,7 @@ async function getLeaderboard(res, url) {
 async function getWinners(res, url) {
   const limit = Math.max(1, Math.min(parseInt(url.searchParams.get("limit") || "3", 10) || 3, 12));
 
-  // Most recent closed contest
+ 
   const { data: contest, error: e1 } = await sb
     .from("contests")
     .select("id,title,status,created_at")
@@ -187,11 +184,10 @@ async function getWinners(res, url) {
     .limit(1)
     .maybeSingle();
 
-  // never 500 here; just return empty gracefully
+
   if (e1) return send(res, 200, { contest: null, winners: [] });
   if (!contest) return send(res, 200, { contest: null, winners: [] });
 
-  // Preferred: winners table
   const q = await sb
     .from("contest_winners")
     .select("winner_handle, won_at, meme:memes(id, handle, img_url)")
@@ -209,7 +205,7 @@ async function getWinners(res, url) {
     return send(res, 200, { contest, winners });
   }
 
-  // Fallback: compute winner from entries + votes if winners table is empty/missing
+ 
   const ent = await sb
     .from("contest_entries")
     .select(`id, meme_id, submitter_handle, created_at, memes:memes(id, handle, img_url), votes:contest_votes(count)`)
@@ -234,7 +230,7 @@ async function getWinners(res, url) {
   return send(res, 200, { contest, winners });
 }
 
-/* ---------------- POST handlers ---------------- */
+
 
 async function postOpen(res, body) {
   const { title, submission_cap = 10, submissions_deadline = null, voting_deadline = null } = body || {};
@@ -266,7 +262,7 @@ async function postOpen(res, body) {
   return send(res, 200, { ok: true, contest: ins.data });
 }
 
-// Idempotent start-voting
+
 async function postStartVoting(res, body) {
   const { contest_id } = body || {};
   if (!contest_id) return send(res, 400, { error: "contest_id required" });
@@ -292,13 +288,13 @@ async function postStartVoting(res, body) {
   return send(res, 200, { ok: true, contest: upd.data });
 }
 
-// Idempotent close + graceful winner write
+
 async function postClose(res, body) {
   try {
     const { contest_id } = body || {};
     if (!contest_id) return send(res, 400, { error: "contest_id required" });
 
-    // Read current contest status
+    
     const cur = await sbAdmin
       .from("contests")
       .select("id,status,created_at")
@@ -307,9 +303,9 @@ async function postClose(res, body) {
     if (cur.error) return send(res, 500, { error: cur.error.message });
     if (!cur.data) return send(res, 400, { error: "contest not found" });
 
-    // If already closed, return OK (idempotent)
+    
     if (cur.data.status === "closed") {
-      // If a winner already exists, return it; otherwise OK closed
+      
       const w = await sb
         .from("contest_winners")
         .select("winner_handle, meme:memes(id,handle,img_url), won_at")
@@ -318,14 +314,13 @@ async function postClose(res, body) {
       return send(res, 200, { ok: true, closed: true, winner: w?.data || null });
     }
 
-    // Get entries + vote counts (server-side)
     const ent = await sb
       .from("contest_entries")
       .select("id, meme_id, submitter_handle, created_at, contest_votes:contest_votes(id)")
       .eq("contest_id", contest_id);
     if (ent.error) return send(res, 500, { error: ent.error.message });
 
-    // Mark contest closed regardless of entries (so we don’t error on empty contests)
+   
     const closed = await sbAdmin
       .from("contests")
       .update({ status: "closed" })
@@ -336,12 +331,12 @@ async function postClose(res, body) {
       return send(res, 200, { ok: true, closed: true, winner: null });
     }
 
-    // Pick winner (most votes, tie-breaker = earliest created_at)
+   
     const [top] = ent.data
       .map(e => ({ ...e, _votes: Array.isArray(e.contest_votes) ? e.contest_votes.length : 0 }))
       .sort((a, b) => (b._votes - a._votes) || (new Date(a.created_at) - new Date(b.created_at)));
 
-    // If we already inserted a winner for this contest, don’t try again
+    
     const already = await sb
       .from("contest_winners")
       .select("id")
@@ -376,7 +371,7 @@ async function postSubmit(res, body) {
   handle = (handle || "").toString().trim().replace(/^@+/, "").toLowerCase();
   if (!handle) return send(res, 400, { error: "handle required" });
 
-  // Resolve target contest (current open)
+
   if (!contest_id) {
     const openC = await sbAdmin
       .from("contests")
@@ -390,12 +385,12 @@ async function postSubmit(res, body) {
     contest_id = openC.data.id;
   }
 
-  // Get or create meme id
+ 
   let memeId = meme_id;
   if (!memeId && imgUrl) {
     const cleanUrl = normalizeUrl(imgUrl);
 
-    // Try existing first
+   
     const existing = await sbAdmin
       .from("memes")
       .select("id")
@@ -407,7 +402,7 @@ async function postSubmit(res, body) {
     if (existing.data?.id) {
       memeId = existing.data.id;
     } else {
-      // UPSERT requires a unique index on memes(img_url)
+    
       const up = await sbAdmin
         .from("memes")
         .upsert({ handle, img_url: cleanUrl }, { onConflict: "img_url" })
@@ -420,7 +415,7 @@ async function postSubmit(res, body) {
 
   if (!memeId) return send(res, 400, { error: "Provide imgUrl or meme_id" });
 
-  // One entry per handle per contest
+  
   const dup = await sbAdmin
     .from("contest_entries")
     .select("id")
@@ -431,7 +426,7 @@ async function postSubmit(res, body) {
   if (dup.error) return send(res, 500, { error: dup.error.message });
   if (dup.data) return send(res, 200, { ok: true, duplicate: true });
 
-  // Insert entry
+  
   const entry = await sbAdmin
     .from("contest_entries")
     .insert([{ contest_id, meme_id: memeId, submitter_handle: handle }])
@@ -442,17 +437,17 @@ async function postSubmit(res, body) {
   return send(res, 200, { ok: true, entry_id: entry.data.id });
 }
 
-// replace ONLY this function in api/contest.js
+
 async function postVote(res, body) {
   try {
     let { entry_id, voter_handle } = body || {};
 
-    // Basic validation
+    
     if (!entry_id || typeof entry_id !== "string" || entry_id.length < 8) {
       return send(res, 400, { error: "entry_id required" });
     }
 
-    // Sanitize handle: strip @, lowercase, allow a–z0–9._-
+    
     voter_handle = String(voter_handle || "")
       .trim()
       .replace(/^@+/, "")
@@ -460,12 +455,12 @@ async function postVote(res, body) {
     if (!voter_handle) {
       return send(res, 400, { error: "voter_handle required" });
     }
-    // Optional: tighten length/pattern to avoid DB errors
+   
     if (voter_handle.length > 40 || !/^[a-z0-9._-]+$/.test(voter_handle)) {
       return send(res, 400, { error: "invalid voter_handle" });
     }
 
-    // 1) Make sure entry exists and grab contest_id
+    
     let entry;
     try {
       const r = await sb
@@ -481,7 +476,7 @@ async function postVote(res, body) {
       return send(res, 500, { error: "lookup failed" });
     }
 
-    // 2) Insert vote with service role (RLS-safe)
+    
     try {
       const ins = await sbAdmin
         .from("contest_votes")
@@ -491,14 +486,14 @@ async function postVote(res, body) {
           voter_handle
         });
 
-      // If Supabase returned an error object (older clients can return { error })
+    
       if (ins?.error) throw ins.error;
 
-      // OK!
+      
       return send(res, 200, { ok: true });
     } catch (e) {
       const msg = String(e?.message || e || "");
-      // Treat unique-constraint (duplicate vote) as success
+      
       if (
         msg.includes("duplicate key") ||
         msg.includes("23505") ||
@@ -507,7 +502,7 @@ async function postVote(res, body) {
         return send(res, 200, { ok: true, duplicate: true });
       }
 
-      // Common schema errors with a friendly message
+   
       if (msg.toLowerCase().includes("relation") && msg.toLowerCase().includes("does not exist")) {
         return send(res, 500, { error: "contest_votes table not found" });
       }
@@ -515,11 +510,11 @@ async function postVote(res, body) {
         return send(res, 500, { error: "insert permission denied" });
       }
 
-      // Fallback
+     
       return send(res, 400, { error: msg || "Vote failed" });
     }
   } catch {
-    // Absolute last resort; never crash the function
+    
     return send(res, 500, { error: "server error" });
   }
 }

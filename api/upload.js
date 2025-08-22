@@ -14,7 +14,7 @@ export default async function handler(req, res) {
     const body = await readJson(req);
     let { handle, imageBase64 } = body || {};
 
-    // normalize handle
+    
     handle = String(handle || "").replace(/^@+/, "").trim().toLowerCase();
     if (!handle) return end(res, 400, { error: "handle required" });
 
@@ -22,7 +22,7 @@ export default async function handler(req, res) {
       return end(res, 400, { error: "imageBase64 required" });
     }
 
-    // expect data URL: data:image/<ext>;base64,<data>
+
     const m = imageBase64.match(/^data:(image\/(png|jpeg|jpg|webp|gif));base64,(.+)$/i);
     if (!m) return end(res, 400, { error: "Invalid image format" });
 
@@ -31,31 +31,31 @@ export default async function handler(req, res) {
     const b64  = m[3];
 
     const buf = Buffer.from(b64, "base64");
-    const MAX = 3 * 1024 * 1024; // 3MB to match frontend
+    const MAX = 3 * 1024 * 1024; 
     if (buf.length > MAX) return end(res, 413, { error: "Image too large (max 3MB)" });
 
-    // upload to Supabase Storage (bucket: memes)
+   
     const fileName = `uploads/${randomUUID()}.${ext}`;
     const up = await sbAdmin.storage
       .from("memes")
       .upload(fileName, buf, { contentType: mime, upsert: false });
 
     if (up?.error) {
-      // UUID path should not collide; if it does and it's not a duplicate msg, surface it
+      
       const msg = String(up.error.message || "").toLowerCase();
       if (!msg.includes("already exists") && !msg.includes("duplicate")) {
         return end(res, 500, { error: up.error.message });
       }
     }
 
-    // public URL (prefer non-signed), then normalize for dedupe
+   
     const { data: pub } = sbAdmin.storage.from("memes").getPublicUrl(fileName);
     const publicUrl = pub?.publicUrl;
     if (!publicUrl) return end(res, 500, { error: "Failed to get public URL" });
 
     const cleanUrl = normalizeUrl(publicUrl);
 
-    // Upsert the meme row by URL (dedupe)
+    
     const upsert = await sbAdmin
       .from("memes")
       .upsert({ handle, img_url: cleanUrl }, { onConflict: "img_url" })
@@ -65,7 +65,7 @@ export default async function handler(req, res) {
 
     if (upsert.error) {
       const msg = String(upsert.error.message || "");
-      // race-safe fallback: read existing by URL
+    
       if (msg.includes("23505") || msg.toLowerCase().includes("duplicate")) {
         const got = await sbAdmin
           .from("memes")
@@ -78,7 +78,7 @@ export default async function handler(req, res) {
       return end(res, 500, { error: msg });
     }
 
-    // If we upserted and the row existed, Supabase returns that row — mark as duplicate when handle differs
+   
     const isDup = upsert.data?.img_url === cleanUrl && !!upsert.data?.id;
     return end(res, 200, {
       ok: true,
@@ -91,14 +91,14 @@ export default async function handler(req, res) {
   }
 }
 
-/* ---------------- helpers ---------------- */
+
 
 function normalizeUrl(u) {
   try {
     const x = new URL(String(u));
     x.hash = "";
-    x.search = "";                 // strip signed/tracking params
-    return x.toString().replace(/\/+$/, ""); // drop trailing slash
+    x.search = "";                 
+    return x.toString().replace(/\/+$/, ""); 
   } catch {
     return String(u || "").trim();
   }

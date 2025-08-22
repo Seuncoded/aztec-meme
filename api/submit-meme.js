@@ -19,7 +19,7 @@ export default async function handler(req, res) {
       return send(res, 400, { error: "handle and imgUrl required" });
     }
 
-    // try insert; on unique violation, respond as duplicate
+  
     const ins = await sbAdmin
       .from("memes")
       .insert([{ handle, img_url: imgUrl }])

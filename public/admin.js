@@ -2,7 +2,7 @@
 (function () {
   const $ = (s, r=document) => r.querySelector(s);
 
-  // Elements (IDs must match your admin.html)
+
   const tokenInput      = $('#tokenInput');
   const saveTokenBtn    = $('#saveTokenBtn');
   const checkBtn        = $('#checkBtn');
@@ -20,14 +20,13 @@
 
   function say(x){ resultBox.textContent = typeof x === 'string' ? x : JSON.stringify(x, null, 2); }
 
-  // Persist token
   function saveToken() {
     const v = (tokenInput.value || '').trim();
     localStorage.setItem('az-admin-token', v);
     say(`Token saved (${v.slice(0,6)}…${v.slice(-4)})`);
   }
 
-  // Wrap fetch: add admin header for POSTs to /api/contest/*
+
   const _fetch = window.fetch;
   window.fetch = function(url, opts={}) {
     const u = String(url);
@@ -39,7 +38,6 @@
     return _fetch(url, opts);
   };
 
-  // Safe JSON reader
   async function jsonOrText(r){
     const text = await r.text();
     try { return { ok:r.ok, data: JSON.parse(text) }; }
@@ -75,7 +73,7 @@
     return jsonOrText(r);
   }
 
-  // Wire buttons
+ 
   saveTokenBtn.addEventListener('click', saveToken);
   checkBtn.addEventListener('click', refresh);
 
@@ -107,7 +105,7 @@
     closeBtn.disabled = false;
   });
 
-  // Restore token and prime UI
+  
   tokenInput.value = localStorage.getItem('az-admin-token') || '';
   refresh();
 })();
