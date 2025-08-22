@@ -5,6 +5,21 @@
 import * as Pub from "./_supabase.js";
 import * as Admin from "./_supabase_admin.js";
 
+function normalizeUrl(u) {
+  try {
+    const s = String(u || "").trim();
+    if (!s) return "";
+    const url = new URL(s);
+    // Keep origin+path; drop hash. If you want to keep queries, comment next line.
+    url.hash = "";
+    // If you want to drop all queries (strongest dedupe), uncomment:
+    // url.search = "";
+    return url.toString();
+  } catch {
+    return String(u || "").trim();
+  }
+}
+
 const sb =
   Pub.sb || Pub.supabase || Pub.client || Pub.default;
 const sbAdmin =
@@ -279,47 +294,64 @@ async function postStartVoting(res, body) {
 
 // Idempotent close + graceful winner write
 async function postClose(res, body) {
-  const { contest_id } = body || {};
-  if (!contest_id) return send(res, 400, { error: "contest_id required" });
+  try {
+    const { contest_id } = body || {};
+    if (!contest_id) return send(res, 400, { error: "contest_id required" });
 
-  // Fetch current status (for idempotency)
-  const { data: c0, error: e0 } = await sbAdmin
-    .from("contests")
-    .select("id,status")
-    .eq("id", contest_id)
-    .single();
-  if (e0 || !c0) return send(res, 400, { error: e0?.message || "contest not found" });
-  if (c0.status === "closed") return send(res, 200, { ok: true, closed: true });
+    // Read current contest status
+    const cur = await sbAdmin
+      .from("contests")
+      .select("id,status,created_at")
+      .eq("id", contest_id)
+      .maybeSingle();
+    if (cur.error) return send(res, 500, { error: cur.error.message });
+    if (!cur.data) return send(res, 400, { error: "contest not found" });
 
-  // Grab entries + votes
-  const ent = await sb
-    .from("contest_entries")
-    .select(`id, meme_id, submitter_handle, created_at, contest_votes:contest_votes(id)`)
-    .eq("contest_id", contest_id);
+    // If already closed, return OK (idempotent)
+    if (cur.data.status === "closed") {
+      // If a winner already exists, return it; otherwise OK closed
+      const w = await sb
+        .from("contest_winners")
+        .select("winner_handle, meme:memes(id,handle,img_url), won_at")
+        .eq("contest_id", contest_id)
+        .maybeSingle();
+      return send(res, 200, { ok: true, closed: true, winner: w?.data || null });
+    }
 
-  if (ent.error) return send(res, 500, { error: ent.error.message });
+    // Get entries + vote counts (server-side)
+    const ent = await sb
+      .from("contest_entries")
+      .select("id, meme_id, submitter_handle, created_at, contest_votes:contest_votes(id)")
+      .eq("contest_id", contest_id);
+    if (ent.error) return send(res, 500, { error: ent.error.message });
 
-  // Close contest first — even with zero entries
-  const eClose = await sbAdmin
-    .from("contests")
-    .update({ status: "closed" })
-    .eq("id", contest_id);
-  if (eClose.error) return send(res, 500, { error: eClose.error.message });
+    // Mark contest closed regardless of entries (so we don’t error on empty contests)
+    const closed = await sbAdmin
+      .from("contests")
+      .update({ status: "closed" })
+      .eq("id", contest_id);
+    if (closed.error) return send(res, 500, { error: closed.error.message });
 
-  let winnerRow = null;
+    if (!ent.data || !ent.data.length) {
+      return send(res, 200, { ok: true, closed: true, winner: null });
+    }
 
-  if (ent.data && ent.data.length) {
-    const withCounts = ent.data.map(e => ({
-      ...e,
-      _votes: Array.isArray(e.contest_votes) ? e.contest_votes.length : 0,
-    })).sort((a,b)=>{
-      if (b._votes !== a._votes) return b._votes - a._votes;
-      return new Date(a.created_at) - new Date(b.created_at);
-    });
+    // Pick winner (most votes, tie-breaker = earliest created_at)
+    const [top] = ent.data
+      .map(e => ({ ...e, _votes: Array.isArray(e.contest_votes) ? e.contest_votes.length : 0 }))
+      .sort((a, b) => (b._votes - a._votes) || (new Date(a.created_at) - new Date(b.created_at)));
 
-    const top = withCounts[0];
+    // If we already inserted a winner for this contest, don’t try again
+    const already = await sb
+      .from("contest_winners")
+      .select("id")
+      .eq("contest_id", contest_id)
+      .limit(1)
+      .maybeSingle();
+    if (!already.error && already.data) {
+      return send(res, 200, { ok: true, closed: true, winner: already.data });
+    }
 
-    // Try to write into contest_winners; ignore failure (table may not exist)
     const ins = await sbAdmin
       .from("contest_winners")
       .insert({
@@ -329,14 +361,14 @@ async function postClose(res, body) {
         winner_handle: top.submitter_handle,
         won_at: new Date().toISOString(),
       })
-      .select("*")
-      .single()
-      .catch(e => ({ error: e }));
+      .select("winner_handle, meme:memes(id,handle,img_url), won_at")
+      .single();
 
-    if (!ins.error) winnerRow = ins.data;
+    if (ins.error) return send(res, 500, { error: ins.error.message });
+    return send(res, 200, { ok: true, closed: true, winner: ins.data });
+  } catch {
+    return send(res, 500, { error: "server error" });
   }
-
-  return send(res, 200, { ok: true, closed: true, winner: winnerRow });
 }
 
 async function postSubmit(res, body) {
@@ -344,6 +376,7 @@ async function postSubmit(res, body) {
   handle = (handle || "").toString().trim().replace(/^@+/, "").toLowerCase();
   if (!handle) return send(res, 400, { error: "handle required" });
 
+  // Resolve target contest (current open)
   if (!contest_id) {
     const openC = await sbAdmin
       .from("contests")
@@ -357,43 +390,37 @@ async function postSubmit(res, body) {
     contest_id = openC.data.id;
   }
 
+  // Get or create meme id
   let memeId = meme_id;
   if (!memeId && imgUrl) {
+    const cleanUrl = normalizeUrl(imgUrl);
+
+    // Try existing first
     const existing = await sbAdmin
       .from("memes")
       .select("id")
-      .eq("img_url", imgUrl)
+      .eq("img_url", cleanUrl)
       .limit(1)
       .maybeSingle();
-
     if (existing.error) return send(res, 500, { error: existing.error.message });
-    memeId = existing.data?.id;
 
-    if (!memeId) {
-      const inserted = await sbAdmin
+    if (existing.data?.id) {
+      memeId = existing.data.id;
+    } else {
+      // UPSERT requires a unique index on memes(img_url)
+      const up = await sbAdmin
         .from("memes")
-        .insert([{ handle, img_url: imgUrl }])
+        .upsert({ handle, img_url: cleanUrl }, { onConflict: "img_url" })
         .select("id")
-        .single()
-        .catch(e => ({ error: e }));
-
-      if (inserted.error) {
-        // Race-safe: try reading again
-        const got = await sbAdmin
-          .from("memes")
-          .select("id")
-          .eq("img_url", imgUrl)
-          .limit(1)
-          .maybeSingle();
-        if (got.error) return send(res, 500, { error: inserted.error?.message || "insert failed" });
-        memeId = got.data?.id;
-      } else {
-        memeId = inserted.data.id;
-      }
+        .single();
+      if (up.error) return send(res, 500, { error: up.error.message });
+      memeId = up.data.id;
     }
   }
+
   if (!memeId) return send(res, 400, { error: "Provide imgUrl or meme_id" });
 
+  // One entry per handle per contest
   const dup = await sbAdmin
     .from("contest_entries")
     .select("id")
@@ -401,10 +428,10 @@ async function postSubmit(res, body) {
     .eq("submitter_handle", handle)
     .limit(1)
     .maybeSingle();
-
   if (dup.error) return send(res, 500, { error: dup.error.message });
   if (dup.data) return send(res, 200, { ok: true, duplicate: true });
 
+  // Insert entry
   const entry = await sbAdmin
     .from("contest_entries")
     .insert([{ contest_id, meme_id: memeId, submitter_handle: handle }])
