@@ -1,14 +1,8 @@
 {
   "version": 2,
-  "rewrites": [
-    { "source": "/api/contest/open",         "destination": "/api/contest" },
-    { "source": "/api/contest/start-voting", "destination": "/api/contest" },
-    { "source": "/api/contest/close",        "destination": "/api/contest" },
-    { "source": "/api/contest/submit",       "destination": "/api/contest" },
-    { "source": "/api/contest/vote",         "destination": "/api/contest" },
-    { "source": "/api/contest/active",       "destination": "/api/contest" },
-    { "source": "/api/contest/entries",      "destination": "/api/contest" },
-    { "source": "/api/contest/leaderboard",  "destination": "/api/contest" },
-    { "source": "/api/contest/winners",      "destination": "/api/contest" }
-  ]
+  "functions": {
+    "api/contest/[...slug].js": {
+      "runtime": "nodejs18.x"
+    }
+  }
 }
