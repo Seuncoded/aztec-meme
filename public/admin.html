@@ -26,7 +26,7 @@
   <div class="wrap">
     <div class="title">🛠️ Memes Contest — Admin</div>
 
-    <!-- Token box -->
+   
     <div class="card">
       <div class="row">
         <input id="tokenInput" class="input" style="flex:1" placeholder="Paste admin token…" />
@@ -36,7 +36,7 @@
       <div class="muted" style="margin-top:6px">Tip: token is stored as <code>localStorage["az-admin-token"]</code> on this browser.</div>
     </div>
 
-    <!-- Status / active contest -->
+    
     <div class="card" id="statusCard">
       <div class="row" style="justify-content:space-between">
         <div id="activeTitle" class="pill">No active contest</div>
@@ -51,7 +51,7 @@
       </div>
     </div>
 
-    <!-- Open contest -->
+   
     <div class="card">
       <div class="row">
         <input id="titleInput" class="input" style="flex:1" placeholder="Contest title (e.g., Week 34)" />
@@ -60,7 +60,7 @@
       </div>
     </div>
 
-    <!-- Actions -->
+    
     <div class="card">
       <div class="row">
         <button id="startVotingBtn" class="btn">Start Voting</button>
@@ -68,7 +68,7 @@
       </div>
     </div>
 
-    <!-- Result console -->
+   
     <div class="card">
       <pre id="resultBox" class="muted">Ready.</pre>
       <div class="muted">Only you can see this page. Don’t share your token.</div>
@@ -76,7 +76,7 @@
   </div>
 
   <script>
-    // --- helpers ---
+  
     const $ = (s, r=document)=>r.querySelector(s);
 
     const els = {
@@ -114,7 +114,7 @@
       return data;
     }
 
-    // --- active contest loading + autofill ---
+
     async function loadActive() {
       try {
         const j = await fetchJSON("/api/contest/active");
@@ -145,7 +145,7 @@
       return c?.id || "";
     }
 
-    // --- token wiring ---
+   
     function refreshTokenStatus(){
       const t = localStorage.getItem("az-admin-token") || "";
       els.tokenStatus.textContent = t ? `Token saved (${t.slice(0,6)}…${t.slice(-4)})` : "No token saved";
@@ -158,7 +158,7 @@
       refreshTokenStatus();
     });
 
-    // --- admin actions ---
+   
     els.openBtn.addEventListener("click", async () => {
       const title = (els.titleInput.value || "").trim();
       const cap = Number(els.capInput.value || "0");
@@ -173,7 +173,7 @@
         show(j);
         els.titleInput.value = "";
         els.capInput.value = "";
-        await loadActive(); // refresh id/status
+        await loadActive(); 
       } catch (e) { show(e); }
     });
 
@@ -207,7 +207,7 @@
 
     els.checkBtn.addEventListener("click", loadActive);
 
-    // init
+    
     refreshTokenStatus();
     loadActive();
   </script>

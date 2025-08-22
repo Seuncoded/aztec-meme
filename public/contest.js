@@ -40,14 +40,14 @@ function setContestIdField(id){
   const el = document.getElementById("useContestId");
   if (el) {
     el.value = id || "";
-    // fire an input event in case any listeners depend on it
+  
     el.dispatchEvent(new Event("input", { bubbles: true }));
   }
 }
 
-// state
-let active = null;   // {id,title,status,submission_cap,...}
-let entries = [];    // array with memes joined
+
+let active = null;   
+let entries = [];    
 
 init().catch(err=>console.error(err));
 
@@ -93,7 +93,7 @@ els.imgUrl?.addEventListener("input", () => {
     }
 
     toast(j.duplicate ? "Already voted" : "Voted!");
-    await renderLeaderboard();  // refresh counts
+    await renderLeaderboard();  
   } catch (err) {
     toast(String(err));
   } finally {
@@ -128,13 +128,13 @@ function renderStatus(c){
 }
 
 async function renderByStatus(){
-  // reset boxes
+ 
   els.submitBox.style.display = "none";
   els.entriesBox.style.display = "none";
   els.voteBox.style.display = "none";
   els.leaderBox.style.display = "none";
 
-  // load entries if we have a contest
+ 
   entries = active ? await getEntries(active.id) : [];
 
   if (!active) return;
@@ -146,17 +146,17 @@ async function renderByStatus(){
     els.entriesGrid.innerHTML = entries.map(entryTile).join("");
     els.submitHint.textContent = `One entry per handle.`;
 
-    // --- hard stop when cap is reached ---
+  
 const full = entries.length >= active.submission_cap;
 
-// toggle inputs + button
+
 els.submitBtn.disabled = full;
 els.handle.disabled = full;
 els.imgUrl.disabled = full;
 els.uploadFile && (els.uploadFile.disabled = full);
 els.memeId && (els.memeId.disabled = full);
 
-// update helper text
+
 els.submitHint.textContent = full
   ? "Submission cap reached — entries are closed."
   : "One entry per handle.";
@@ -167,7 +167,7 @@ els.submitHint.textContent = full
     await renderLeaderboard();
   }
   else if (active.status === "closed"){
-    await renderLeaderboard(); // still show winners/board
+    await renderLeaderboard(); 
   }
 }
 
@@ -222,7 +222,7 @@ async function renderLeaderboard(){
   }).join("");
 }
 
-// ----- actions -----
+
 async function onSubmit(){
   if (!active) { toast("No open contest"); return; }
    if (entries.length >= active.submission_cap) {
@@ -235,14 +235,14 @@ async function onSubmit(){
   const file   = els.uploadFile?.files?.[0] || null;
 
   if (!handle) { toast("Enter your @handle"); return; }
-  if (!handle.startsWith("@")) handle = "@"+handle;       // enforce @ for API
+  if (!handle.startsWith("@")) handle = "@"+handle;       
   if (!url && !file) { toast("Add an image URL or choose a file"); return; }
 
   els.submitBtn.disabled = true;
   try {
     let finalUrl = url;
 
-    // if a file is chosen, upload it first
+  
     if (file) {
       const MAX = 6 * 1024 * 1024;
       if (file.size > MAX) { toast("Image too large (max 6MB)"); return; }
@@ -266,19 +266,18 @@ async function onSubmit(){
         return;
       }
 
-      // accept either `url` or `meme.img_url`
+     
       finalUrl = uj.url || uj.meme?.img_url;
       if (!finalUrl) { toast("Upload failed: no URL returned"); return; }
     }
 
-// ...inside onSubmit()
 const r = await fetch("/api/contest/submit", {
   method: "POST",
   headers: { "content-type": "application/json" },
   body: JSON.stringify({
-    contest_id: active?.id,          // ✅ send the active contest id
+    contest_id: active?.id,          
     handle,
-    imgUrl: finalUrl                 // or meme_id if you’re using that path
+    imgUrl: finalUrl                
   })
 });
     const j = await r.json();
@@ -312,21 +311,21 @@ async function onOpen(){
   toast("Contest opened");
   els.newTitle.value = ""; els.newCap.value = "";
 
-  await refreshActive();                   // refresh status
-  if (j.contest?.id) setContestIdField(j.contest.id); // <— add this guard
+  await refreshActive();                   
+  if (j.contest?.id) setContestIdField(j.contest.id); 
 }
 
 async function getActiveId() {
-  // use current state if present
+ 
   if (active?.id) return active.id;
 
-  // fall back to a fresh fetch
+  
   try {
     const r = await fetch('/api/contest/active');
     const j = await r.json();
     if (j?.contest?.id) {
       active = j.contest;
-      // keep hidden field in sync if it exists
+      
       const f = document.getElementById('useContestId');
       if (f) f.value = active.id;
       return active.id;
@@ -336,7 +335,7 @@ async function getActiveId() {
 }
 
 async function onStartVoting() {
-  const id = await getActiveId();            // <-- robust fetch
+  const id = await getActiveId();           
   if (!id) { toast("No active contest id"); return; }
 
   const r = await fetch("/api/contest/start-voting", {
@@ -351,7 +350,7 @@ async function onStartVoting() {
 }
 
 async function onClose() {
-  const id = await getActiveId();            // <-- robust fetch
+  const id = await getActiveId();            
   if (!id) { toast("No active contest id"); return; }
 
   const r = await fetch("/api/contest/close", {

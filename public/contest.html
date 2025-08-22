@@ -9,7 +9,7 @@
     href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="%236f6ce8"/><rect x="18" y="18" width="28" height="28" rx="6" fill="%23ffffff"/></svg>' />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <style>
-    /* base (unchanged behavior) */
+ 
     body{margin:0;background:#0a0f18;color:#e9ecff;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial}
     .wrap{max-width:1100px;margin:22px auto;padding:0 16px}
     .head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
@@ -32,7 +32,7 @@
     .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#111a3d;border:1px solid #2a3a7a;color:#dfe5ff;border-radius:10px;padding:10px 14px;font-weight:800;display:none}
     .toast.show{display:block}
 
-    /* —— Fancy page title —— */
+   
     .head .title{
       font-weight:900;font-size:34px;letter-spacing:.3px;
       background:linear-gradient(90deg,#9a7bff,#6f6ce8 45%,#b7b4ff);
@@ -40,7 +40,7 @@
       filter:drop-shadow(0 4px 14px rgba(111,108,232,.18));
     }
 
-    /* —— Status bar —— */
+  
     #status.card{
       padding:14px 16px;
       background:
@@ -62,16 +62,16 @@
     #status .chip:hover{transform:translateY(-1px);filter:brightness(1.06)}
     #status .chip .dot{width:8px;height:8px;border-radius:50%;box-shadow:0 0 0 3px rgba(255,255,255,.06) inset}
 
-    /* variants */
+ 
     #status .chip.week{background:#121f4a;border-color:#3a4ab0}
     #status .chip.cap{background:#111e40}
     #status .chip.id{background:transparent;border-style:dashed;opacity:.85;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}
 
-    /* state dots */
+   
     #status .chip.open   .dot{background:#23d18b}
     #status .chip.closed .dot{background:#9aa3c7}
 
-    /* 🔥 distinct “voting” look */
+   
     #status .chip.voting{
       background:linear-gradient(135deg,#2b1f09,#231a3c);
       border-color:#6a4a12;
@@ -82,7 +82,7 @@
     }
     #status .chip.voting .dot{background:#ffb020}
 
-    /* —— Voting section header polish —— */
+
     #voteBox .pill{
       background:linear-gradient(135deg,#1b2454,#251b55);
       border-color:#3f4fc2;
@@ -106,7 +106,7 @@
       <a class="btn" href="/">← Back</a>
     </div>
 
-    <!-- filled by JS; classes/ids unchanged -->
+    
     <div id="status" class="card"></div>
 
     <div id="submitBox" class="card" style="margin-top:12px;display:none">
@@ -142,7 +142,7 @@
       <div id="leaderGrid" class="grid"></div>
     </div>
 
-    <!-- admin helpers (only show if ?admin=1) -->
+   
     <div id="adminBox" class="card" style="margin-top:12px;display:none">
       <div class="row">
         <input id="newTitle" class="input" placeholder="Contest title (Week NN)" />
