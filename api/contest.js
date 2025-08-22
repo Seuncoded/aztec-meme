@@ -1,4 +1,7 @@
 // api/contest.js
+// Single, robust entrypoint for all contest actions.
+// Supports both /api/contest?action=<action> and /api/contest/<action>
+
 import * as Pub from "./_supabase.js";
 import * as Admin from "./_supabase_admin.js";
 
@@ -8,7 +11,7 @@ const sbAdmin =
   Admin.sbAdmin || Admin.supabaseAdmin || Admin.client || Admin.default;
 
 export default async function handler(req, res) {
-  // always JSON
+  // Always JSON responses
   if (!res.headersSent) res.setHeader("content-type", "application/json");
 
   try {
@@ -44,7 +47,7 @@ export default async function handler(req, res) {
 
     return send(res, 404, { error: "Unknown action" });
   } catch (e) {
-    // one final safety net
+    // Final safety net — still return JSON
     if (!res.headersSent) return send(res, 500, { error: "server error" });
   }
 }
@@ -114,16 +117,16 @@ async function getEntries(res, url) {
   return send(res, 200, { items: data || [] });
 }
 
-// --- replace your getLeaderboard with this ---
 async function getLeaderboard(res, url) {
   let contest_id = url.searchParams.get("contest_id") || "";
 
+  // If not provided, pick the latest voting/open contest (voting first)
   if (!contest_id) {
     const { data: c1, error: e1 } = await sb
       .from("contests")
       .select("id,status,created_at")
       .in("status", ["voting", "open"])
-      .order("status", { ascending: true })      
+      .order("status", { ascending: true })      // voting before open
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -132,7 +135,7 @@ async function getLeaderboard(res, url) {
     contest_id = c1.id;
   }
 
-  // Pull votes as an array and count in JS (robust)
+  // Pull votes array and count in JS (robust across Supabase versions)
   const { data: rows, error: e2 } = await sb
     .from("contest_entries")
     .select(`
@@ -156,6 +159,66 @@ async function getLeaderboard(res, url) {
 
   return send(res, 200, { ok: true, contest_id, items });
 }
+
+async function getWinners(res, url) {
+  const limit = Math.max(1, Math.min(parseInt(url.searchParams.get("limit") || "3", 10) || 3, 12));
+
+  // Most recent closed contest
+  const { data: contest, error: e1 } = await sb
+    .from("contests")
+    .select("id,title,status,created_at")
+    .eq("status", "closed")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  // never 500 here; just return empty gracefully
+  if (e1) return send(res, 200, { contest: null, winners: [] });
+  if (!contest) return send(res, 200, { contest: null, winners: [] });
+
+  // Preferred: winners table
+  const q = await sb
+    .from("contest_winners")
+    .select("winner_handle, won_at, meme:memes(id, handle, img_url)")
+    .eq("contest_id", contest.id)
+    .order("won_at", { ascending: true })
+    .limit(limit);
+
+  if (!q.error && Array.isArray(q.data) && q.data.length) {
+    const winners = q.data.map((w, i) => ({
+      rank: i + 1,
+      winner_handle: w.winner_handle,
+      meme: w.meme,
+      won_at: w.won_at
+    }));
+    return send(res, 200, { contest, winners });
+  }
+
+  // Fallback: compute winner from entries + votes if winners table is empty/missing
+  const ent = await sb
+    .from("contest_entries")
+    .select(`id, meme_id, submitter_handle, created_at, memes:memes(id, handle, img_url), votes:contest_votes(count)`)
+    .eq("contest_id", contest.id);
+
+  if (ent.error || !ent.data || !ent.data.length) {
+    return send(res, 200, { contest, winners: [] });
+  }
+
+  const sorted = ent.data
+    .map(r => ({ ...r, _votes: (r.votes?.[0]?.count ?? 0) }))
+    .sort((a,b) => b._votes - a._votes || new Date(a.created_at) - new Date(b.created_at));
+
+  const top = sorted[0];
+  const winners = [{
+    rank: 1,
+    winner_handle: top.submitter_handle,
+    meme: { id: top.memes?.id, handle: top.memes?.handle, img_url: top.memes?.img_url },
+    won_at: top.created_at
+  }];
+
+  return send(res, 200, { contest, winners });
+}
+
 /* ---------------- POST handlers ---------------- */
 
 async function postOpen(res, body) {
@@ -188,6 +251,7 @@ async function postOpen(res, body) {
   return send(res, 200, { ok: true, contest: ins.data });
 }
 
+// Idempotent start-voting
 async function postStartVoting(res, body) {
   const { contest_id } = body || {};
   if (!contest_id) return send(res, 400, { error: "contest_id required" });
@@ -197,8 +261,10 @@ async function postStartVoting(res, body) {
     .select("id,status")
     .eq("id", contest_id)
     .single();
-  if (e1) return send(res, 400, { error: e1.message });
-  if (!c || c.status !== "open") return send(res, 400, { error: "contest is not open" });
+
+  if (e1 || !c) return send(res, 400, { error: e1?.message || "contest not found" });
+  if (c.status === "voting") return send(res, 200, { ok: true, contest: c }); // idempotent
+  if (c.status !== "open")   return send(res, 400, { error: "contest is not open" });
 
   const upd = await sbAdmin
     .from("contests")
@@ -211,21 +277,37 @@ async function postStartVoting(res, body) {
   return send(res, 200, { ok: true, contest: upd.data });
 }
 
+// Idempotent close + graceful winner write
 async function postClose(res, body) {
   const { contest_id } = body || {};
   if (!contest_id) return send(res, 400, { error: "contest_id required" });
 
+  // Fetch current status (for idempotency)
+  const { data: c0, error: e0 } = await sbAdmin
+    .from("contests")
+    .select("id,status")
+    .eq("id", contest_id)
+    .single();
+  if (e0 || !c0) return send(res, 400, { error: e0?.message || "contest not found" });
+  if (c0.status === "closed") return send(res, 200, { ok: true, closed: true });
+
+  // Grab entries + votes
   const ent = await sb
     .from("contest_entries")
-    .select(`
-      id, meme_id, submitter_handle, created_at,
-      contest_votes:contest_votes(id)
-    `)
+    .select(`id, meme_id, submitter_handle, created_at, contest_votes:contest_votes(id)`)
     .eq("contest_id", contest_id);
 
   if (ent.error) return send(res, 500, { error: ent.error.message });
 
+  // Close contest first — even with zero entries
+  const eClose = await sbAdmin
+    .from("contests")
+    .update({ status: "closed" })
+    .eq("id", contest_id);
+  if (eClose.error) return send(res, 500, { error: eClose.error.message });
+
   let winnerRow = null;
+
   if (ent.data && ent.data.length) {
     const withCounts = ent.data.map(e => ({
       ...e,
@@ -234,14 +316,10 @@ async function postClose(res, body) {
       if (b._votes !== a._votes) return b._votes - a._votes;
       return new Date(a.created_at) - new Date(b.created_at);
     });
+
     const top = withCounts[0];
 
-    const eClose = await sbAdmin
-      .from("contests")
-      .update({ status: "closed" })
-      .eq("id", contest_id);
-    if (eClose.error) return send(res, 500, { error: eClose.error.message });
-
+    // Try to write into contest_winners; ignore failure (table may not exist)
     const ins = await sbAdmin
       .from("contest_winners")
       .insert({
@@ -252,15 +330,10 @@ async function postClose(res, body) {
         won_at: new Date().toISOString(),
       })
       .select("*")
-      .single();
-    if (ins.error) return send(res, 500, { error: ins.error.message });
-    winnerRow = ins.data;
-  } else {
-    const eCloseOnly = await sbAdmin
-      .from("contests")
-      .update({ status: "closed" })
-      .eq("id", contest_id);
-    if (eCloseOnly.error) return send(res, 500, { error: eCloseOnly.error.message });
+      .single()
+      .catch(e => ({ error: e }));
+
+    if (!ins.error) winnerRow = ins.data;
   }
 
   return send(res, 200, { ok: true, closed: true, winner: winnerRow });
@@ -305,6 +378,7 @@ async function postSubmit(res, body) {
         .catch(e => ({ error: e }));
 
       if (inserted.error) {
+        // Race-safe: try reading again
         const got = await sbAdmin
           .from("memes")
           .select("id")
@@ -363,6 +437,7 @@ async function postVote(res, body) {
 
   if (ins.error) {
     const msg = String(ins.error.message || "");
+    // Handle unique constraint as success
     if (msg.includes("23505") || msg.toLowerCase().includes("duplicate")) {
       return send(res, 200, { ok: true, duplicate: true });
     }
