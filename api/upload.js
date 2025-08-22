@@ -56,36 +56,53 @@ export default async function handler(req, res) {
     const cleanUrl = normalizeUrl(publicUrl);
 
     
-    const upsert = await sbAdmin
-      .from("memes")
-      .upsert({ handle, img_url: cleanUrl }, { onConflict: "img_url" })
-      .select("id, handle, img_url")
-      .single()
-      .catch(e => ({ error: e }));
+    // NEW (dedupe safely without upsert)
+const existing = await sbAdmin
+  .from("memes")
+  .select("id, handle, img_url")
+  .eq("img_url", cleanUrl)
+  .maybeSingle();
 
-    if (upsert.error) {
-      const msg = String(upsert.error.message || "");
-    
-      if (msg.includes("23505") || msg.toLowerCase().includes("duplicate")) {
-        const got = await sbAdmin
-          .from("memes")
-          .select("id, handle, img_url")
-          .eq("img_url", cleanUrl)
-          .maybeSingle();
-        if (got.error) return end(res, 500, { error: got.error.message });
-        return end(res, 200, { ok: true, duplicate: true, url: cleanUrl, meme: got.data });
-      }
-      return end(res, 500, { error: msg });
-    }
+if (existing.error) {
+  return end(res, 500, { error: existing.error.message });
+}
 
-   
-    const isDup = upsert.data?.img_url === cleanUrl && !!upsert.data?.id;
-    return end(res, 200, {
-      ok: true,
-      duplicate: isDup,
-      url: cleanUrl,
-      meme: upsert.data
-    });
+if (existing.data) {
+  // Already in DB — treat as duplicate and return it
+  return end(res, 200, {
+    ok: true,
+    duplicate: true,
+    url: cleanUrl,
+    meme: existing.data
+  });
+}
+
+// Not found — insert new row
+const ins = await sbAdmin
+  .from("memes")
+  .insert({ handle, img_url: cleanUrl })
+  .select("id, handle, img_url")
+  .single();
+
+if (ins.error) {
+  // In case of a rare race (two inserts at once), try reading again
+  const again = await sbAdmin
+    .from("memes")
+    .select("id, handle, img_url")
+    .eq("img_url", cleanUrl)
+    .maybeSingle();
+  if (again.data) {
+    return end(res, 200, { ok: true, duplicate: true, url: cleanUrl, meme: again.data });
+  }
+  return end(res, 500, { error: ins.error.message });
+}
+
+return end(res, 200, {
+  ok: true,
+  duplicate: false,
+  url: cleanUrl,
+  meme: ins.data
+});
   } catch (e) {
     return end(res, 500, { error: String(e?.message || e) });
   }
