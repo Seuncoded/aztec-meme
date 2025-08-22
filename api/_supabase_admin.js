@@ -1,12 +1,24 @@
 // /api/_supabase_admin.js
 import { createClient } from "@supabase/supabase-js";
 
-const URL = process.env.SUPABASE_URL;
-const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE; // <- service key
+let adminClient = null;
 
-if (!URL || !SERVICE_ROLE) {
-  throw new Error("Admin Supabase env missing (URL or SERVICE_ROLE).");
+export function getAdmin() {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !key) {
+    return { error: "Admin Supabase env missing (SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY)" };
+  }
+  if (!adminClient) {
+    adminClient = createClient(url, key, { auth: { persistSession: false } });
+  }
+  return { client: adminClient };
 }
 
-export const sbAdmin = createClient(URL, SERVICE_ROLE, { auth: { persistSession: false } });
-export default sbAdmin;
+// for old imports: import sbAdmin from "./_supabase_admin.js"
+export default function sbAdmin() {
+  const { client, error } = getAdmin();
+  if (error) throw new Error(error);
+  return client;
+}
