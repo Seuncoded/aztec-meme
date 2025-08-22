@@ -76,54 +76,58 @@
   </div>
 
   <script>
-const $ = s => document.querySelector(s);
-const out = $("#out");
-const tokenInput = $("#adminToken"); // whatever your input id is
+(() => {
+  const $ = (s,r=document)=>r.querySelector(s);
 
-function authHeaders() {
-  const t = (localStorage.getItem("az-admin-token") || "").trim();
-  return t ? { "x-az-admin-token": t } : {};
-}
+  // --- Elements (make sure the IDs exist in your HTML) ---
+  const saveBtn   = $('#saveTokenBtn')     || $('.save-token, button:contains("Save Token")');
+  const tokenInput= $('#adminToken')       || $('input[placeholder*="token"]');
 
-// Check status
-async function checkStatus(){
-  const r = await fetch("/api/contest/active", { headers: authHeaders() });
-  const j = await r.json().catch(()=>({error:"Invalid JSON response"}));
-  out.textContent = JSON.stringify(j, null, 2);
-}
+  // Provide defaults if IDs differ
+  // (If your HTML has different ids, set them here explicitly)
+  // Example expected ids in the page:
+  // <input id="adminToken" ...>
+  // <button id="saveTokenBtn">Save Token</button>
 
-// Open
-async function openContest(title, cap){
-  const r = await fetch("/api/contest/open", {
-    method: "POST",
-    headers: { "content-type":"application/json", ...authHeaders() },
-    body: JSON.stringify({ title, submission_cap: Number(cap)||10 })
-  });
-  const j = await r.json().catch(()=>({error:"Invalid JSON response"}));
-  out.textContent = JSON.stringify(j, null, 2);
-}
+  function setStatus(msg){
+    const box = document.getElementById('adminStatus');
+    if (box) { box.textContent = msg; }
+    else { console.log('[admin]', msg); }
+  }
 
-// Start voting
-async function startVoting(contest_id){
-  const r = await fetch("/api/contest/start-voting", {
-    method: "POST",
-    headers: { "content-type":"application/json", ...authHeaders() },
-    body: JSON.stringify({ contest_id })
-  });
-  const j = await r.json().catch(()=>({error:"Invalid JSON response"}));
-  out.textContent = JSON.stringify(j, null, 2);
-}
+  // Save token
+  function saveToken() {
+    const v = (tokenInput?.value || '').trim();
+    if (!v) { setStatus('No token entered'); return; }
+    localStorage.setItem('az-admin-token', v);
+    setStatus(`Token saved (${v.slice(0,6)}…${v.slice(-4)})`);
+  }
 
-// Close
-async function closeContest(contest_id){
-  const r = await fetch("/api/contest/close", {
-    method: "POST",
-    headers: { "content-type":"application/json", ...authHeaders() },
-    body: JSON.stringify({ contest_id })
-  });
-  const j = await r.json().catch(()=>({error:"Invalid JSON response"}));
-  out.textContent = JSON.stringify(j, null, 2);
-}
+  // Attach
+  if (saveBtn) {
+    saveBtn.addEventListener('click', (e)=>{ e.preventDefault(); saveToken(); });
+    // Enable just in case CSS disabled it
+    saveBtn.disabled = false;
+    saveBtn.style.pointerEvents = 'auto';
+  } else {
+    console.warn('[admin] Save button not found. Add id="saveTokenBtn" to the button.');
+  }
+
+  // Helper to inject admin header in fetch (global patch – optional)
+  const _fetch = window.fetch;
+  window.fetch = function(url, opts={}) {
+    try {
+      const t = localStorage.getItem('az-admin-token') || '';
+      // Only add header for /api/contest POSTs
+      if (String(url).includes('/api/contest') && (opts.method||'GET').toUpperCase() === 'POST') {
+        opts.headers = Object.assign({}, opts.headers, {'x-az-admin-token': t});
+      }
+    } catch {}
+    return _fetch(url, opts);
+  };
+
+  setStatus('Ready.');
+})();
 </script>
 </body>
 </html>
