@@ -415,34 +415,84 @@ async function postSubmit(res, body) {
   return send(res, 200, { ok: true, entry_id: entry.data.id });
 }
 
+// replace ONLY this function in api/contest.js
 async function postVote(res, body) {
-  const { entry_id, voter_handle } = body || {};
-  if (!entry_id || !voter_handle) return send(res, 400, { error: "entry_id and voter_handle required" });
+  try {
+    let { entry_id, voter_handle } = body || {};
 
-  const entry = await sb
-    .from("contest_entries")
-    .select("id, contest_id")
-    .eq("id", entry_id)
-    .single();
-  if (entry.error || !entry.data) return send(res, 400, { error: "Invalid entry_id" });
-
-  const ins = await sbAdmin
-    .from("contest_votes")
-    .insert({
-      contest_id: entry.data.contest_id,
-      entry_id,
-      voter_handle: voter_handle.trim()
-    })
-    .catch(e => ({ error: e }));
-
-  if (ins.error) {
-    const msg = String(ins.error.message || "");
-    // Handle unique constraint as success
-    if (msg.includes("23505") || msg.toLowerCase().includes("duplicate")) {
-      return send(res, 200, { ok: true, duplicate: true });
+    // Basic validation
+    if (!entry_id || typeof entry_id !== "string" || entry_id.length < 8) {
+      return send(res, 400, { error: "entry_id required" });
     }
-    return send(res, 400, { error: msg || "Vote failed" });
-  }
 
-  return send(res, 200, { ok: true });
+    // Sanitize handle: strip @, lowercase, allow a–z0–9._-
+    voter_handle = String(voter_handle || "")
+      .trim()
+      .replace(/^@+/, "")
+      .toLowerCase();
+    if (!voter_handle) {
+      return send(res, 400, { error: "voter_handle required" });
+    }
+    // Optional: tighten length/pattern to avoid DB errors
+    if (voter_handle.length > 40 || !/^[a-z0-9._-]+$/.test(voter_handle)) {
+      return send(res, 400, { error: "invalid voter_handle" });
+    }
+
+    // 1) Make sure entry exists and grab contest_id
+    let entry;
+    try {
+      const r = await sb
+        .from("contest_entries")
+        .select("id, contest_id")
+        .eq("id", entry_id)
+        .single();
+      if (r.error || !r.data) {
+        return send(res, 400, { error: "Invalid entry_id" });
+      }
+      entry = r.data;
+    } catch (e) {
+      return send(res, 500, { error: "lookup failed" });
+    }
+
+    // 2) Insert vote with service role (RLS-safe)
+    try {
+      const ins = await sbAdmin
+        .from("contest_votes")
+        .insert({
+          contest_id: entry.contest_id,
+          entry_id: entry.id,
+          voter_handle
+        });
+
+      // If Supabase returned an error object (older clients can return { error })
+      if (ins?.error) throw ins.error;
+
+      // OK!
+      return send(res, 200, { ok: true });
+    } catch (e) {
+      const msg = String(e?.message || e || "");
+      // Treat unique-constraint (duplicate vote) as success
+      if (
+        msg.includes("duplicate key") ||
+        msg.includes("23505") ||
+        msg.toLowerCase().includes("duplicate")
+      ) {
+        return send(res, 200, { ok: true, duplicate: true });
+      }
+
+      // Common schema errors with a friendly message
+      if (msg.toLowerCase().includes("relation") && msg.toLowerCase().includes("does not exist")) {
+        return send(res, 500, { error: "contest_votes table not found" });
+      }
+      if (msg.toLowerCase().includes("permission")) {
+        return send(res, 500, { error: "insert permission denied" });
+      }
+
+      // Fallback
+      return send(res, 400, { error: msg || "Vote failed" });
+    }
+  } catch {
+    // Absolute last resort; never crash the function
+    return send(res, 500, { error: "server error" });
+  }
 }
