@@ -1,111 +1,113 @@
-// public/admin.js
-(() => {
-  const $ = s => document.querySelector(s);
 
-  const els = {
-    token: $('#adminToken'),
-    save: $('#saveTokenBtn'),
+(function () {
+  const $ = (s, r=document) => r.querySelector(s);
 
-    statusDot: $('#statusDot'),
-    capDot: $('#capDot'),
-    activeId: $('#activeContestId'),
-    check: $('#checkStatusBtn'),
+  // Elements (IDs must match your admin.html)
+  const tokenInput      = $('#tokenInput');
+  const saveTokenBtn    = $('#saveTokenBtn');
+  const checkBtn        = $('#checkBtn');
+  const titleInput      = $('#titleInput');
+  const capInput        = $('#capInput');
+  const openBtn         = $('#openBtn');
+  const startVotingBtn  = $('#startVotingBtn');
+  const closeBtn        = $('#closeBtn');
 
-    title: $('#newTitle'),
-    cap: $('#newCap'),
-    open: $('#openBtn'),
+  const activeTitle = $('#activeTitle');
+  const activeStatus= $('#activeStatus');
+  const activeCap   = $('#activeCap');
+  const contestIdEl = $('#contestId');
+  const resultBox   = $('#resultBox');
 
-    start: $('#startVotingBtn'),
-    close: $('#closeBtn'),
+  function say(x){ resultBox.textContent = typeof x === 'string' ? x : JSON.stringify(x, null, 2); }
 
-    log: $('#adminStatus'),
-  };
+  // Persist token
+  function saveToken() {
+    const v = (tokenInput.value || '').trim();
+    localStorage.setItem('az-admin-token', v);
+    say(`Token saved (${v.slice(0,6)}…${v.slice(-4)})`);
+  }
 
-  function log(x){ if(els.log) els.log.textContent = typeof x==='string'?x:JSON.stringify(x,null,2); }
-
-  // Always add admin header for POSTs to /api/contest
+  // Wrap fetch: add admin header for POSTs to /api/contest/*
   const _fetch = window.fetch;
   window.fetch = function(url, opts={}) {
-    const isContestPost = String(url).includes('/api/contest') && (opts.method||'GET').toUpperCase()==='POST';
-    if (isContestPost) {
+    const u = String(url);
+    const m = (opts.method || 'GET').toUpperCase();
+    if (u.startsWith('/api/contest') && m === 'POST') {
       const t = localStorage.getItem('az-admin-token') || '';
-      opts.headers = Object.assign({}, opts.headers, {'x-az-admin-token': t});
+      opts.headers = Object.assign({}, opts.headers, { 'x-az-admin-token': t });
     }
     return _fetch(url, opts);
   };
 
+  // Safe JSON reader
+  async function jsonOrText(r){
+    const text = await r.text();
+    try { return { ok:r.ok, data: JSON.parse(text) }; }
+    catch { return { ok:r.ok, data: { error: text.slice(0,200) } }; }
+  }
+
+  async function refresh() {
+    const r = await fetch('/api/contest/active', { cache:'no-store' });
+    const { ok, data } = await jsonOrText(r);
+    if (!ok) { say(data); return; }
+    const c = data.contest;
+    if (!c) {
+      activeTitle.textContent = 'No active contest';
+      activeStatus.textContent = '—';
+      activeCap.textContent    = '—';
+      contestIdEl.value = '';
+      say('Ready.');
+      return;
+    }
+    activeTitle.textContent  = c.title || '(untitled)';
+    activeStatus.textContent = c.status;
+    activeCap.textContent    = c.submission_cap ?? '—';
+    contestIdEl.value        = c.id || '';
+    say({ contest: c });
+  }
+
+  async function call(action, body) {
+    const r = await fetch(`/api/contest/${action}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body || {})
+    });
+    return jsonOrText(r);
+  }
+
   // Wire buttons
-  els.save?.addEventListener('click', () => {
-    const v = (els.token?.value||'').trim();
-    if(!v){ log('No token entered'); return; }
-    localStorage.setItem('az-admin-token', v);
-    log(`Token saved (${v.slice(0,6)}…${v.slice(-4)})`);
+  saveTokenBtn.addEventListener('click', saveToken);
+  checkBtn.addEventListener('click', refresh);
+
+  openBtn.addEventListener('click', async ()=>{
+    openBtn.disabled = true;
+    const title = (titleInput.value || '').trim();
+    const cap = Number(capInput.value || 10);
+    const { ok, data } = await call('open', { title, submission_cap: cap });
+    say(data);
+    await refresh();
+    openBtn.disabled = false;
   });
 
-  els.check?.addEventListener('click', async () => {
-    try{
-      const r = await fetch('/api/contest/active', { cache:'no-store' });
-      const j = await r.json();
-      if(!r.ok){ log(j); return; }
-      const c = j.contest;
-      els.activeId.value = c?.id || '';
-      els.statusDot.textContent = 'status: ' + (c?.status || '—');
-      els.capDot.textContent = 'cap: ' + (c?.submission_cap ?? '—');
-      log(j);
-    }catch(e){ log(String(e)); }
+  startVotingBtn.addEventListener('click', async ()=>{
+    startVotingBtn.disabled = true;
+    const id = contestIdEl.value;
+    const { ok, data } = await call('start-voting', { contest_id: id });
+    say(data);
+    await refresh();
+    startVotingBtn.disabled = false;
   });
 
-  els.open?.addEventListener('click', async () => {
-    const title = (els.title?.value||'').trim();
-    const cap = Number(els.cap?.value || 10);
-    if(!title){ log('title required'); return; }
-    try{
-      const r = await fetch('/api/contest/open', {
-        method:'POST',
-        headers:{'content-type':'application/json'},
-        body: JSON.stringify({ title, submission_cap: cap })
-      });
-      const j = await r.json();
-      log(j);
-      if(r.ok){
-        els.title.value=''; els.cap.value='';
-        els.activeId.value = j.contest?.id || '';
-        els.statusDot.textContent = 'status: ' + (j.contest?.status || 'open');
-        els.capDot.textContent = 'cap: ' + (j.contest?.submission_cap ?? cap);
-      }
-    }catch(e){ log(String(e)); }
+  closeBtn.addEventListener('click', async ()=>{
+    closeBtn.disabled = true;
+    const id = contestIdEl.value;
+    const { ok, data } = await call('close', { contest_id: id });
+    say(data);
+    await refresh();
+    closeBtn.disabled = false;
   });
 
-  els.start?.addEventListener('click', async () => {
-    const id = (els.activeId?.value||'').trim();
-    if(!id){ log('No active contest id'); return; }
-    try{
-      const r = await fetch('/api/contest/start-voting', {
-        method:'POST',
-        headers:{'content-type':'application/json'},
-        body: JSON.stringify({ contest_id: id })
-      });
-      const j = await r.json(); log(j);
-      if(r.ok){ els.statusDot.textContent = 'status: voting'; }
-    }catch(e){ log(String(e)); }
-  });
-
-  els.close?.addEventListener('click', async () => {
-    const id = (els.activeId?.value||'').trim();
-    if(!id){ log('No active contest id'); return; }
-    try{
-      const r = await fetch('/api/contest/close', {
-        method:'POST',
-        headers:{'content-type':'application/json'},
-        body: JSON.stringify({ contest_id: id })
-      });
-      const j = await r.json(); log(j);
-      if(r.ok){ els.statusDot.textContent = 'status: closed'; }
-    }catch(e){ log(String(e)); }
-  });
-
-  // Pre-fill token if present
-  const t = localStorage.getItem('az-admin-token');
-  if (t && els.token) els.token.value = t;
-  log('Ready.');
+  // Restore token and prime UI
+  tokenInput.value = localStorage.getItem('az-admin-token') || '';
+  refresh();
 })();

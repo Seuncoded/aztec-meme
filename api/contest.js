@@ -114,6 +114,7 @@ async function getEntries(res, url) {
   return send(res, 200, { items: data || [] });
 }
 
+// --- replace your getLeaderboard with this ---
 async function getLeaderboard(res, url) {
   let contest_id = url.searchParams.get("contest_id") || "";
 
@@ -122,7 +123,7 @@ async function getLeaderboard(res, url) {
       .from("contests")
       .select("id,status,created_at")
       .in("status", ["voting", "open"])
-      .order("status", { ascending: true })
+      .order("status", { ascending: true })      
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -131,19 +132,14 @@ async function getLeaderboard(res, url) {
     contest_id = c1.id;
   }
 
-  // Try RPC first; fallback if missing
-  const { data, error } = await sb.rpc("contest_leaderboard", { p_contest_id: contest_id });
-  if (!error && Array.isArray(data)) {
-    return send(res, 200, { ok: true, contest_id, items: data });
-  }
-
+  // Pull votes as an array and count in JS (robust)
   const { data: rows, error: e2 } = await sb
     .from("contest_entries")
     .select(`
       id,
       submitter_handle,
       memes:memes!inner(id, handle, img_url),
-      votes:contest_votes(count)
+      contest_votes:contest_votes(id)
     `)
     .eq("contest_id", contest_id);
 
@@ -154,46 +150,12 @@ async function getLeaderboard(res, url) {
       id: r.id,
       submitter_handle: r.submitter_handle,
       memes: r.memes,
-      votes: (r.votes?.[0]?.count ?? 0)
+      votes: Array.isArray(r.contest_votes) ? r.contest_votes.length : 0
     }))
-    .sort((a,b) => b.votes - a.votes);
+    .sort((a, b) => b.votes - a.votes);
 
   return send(res, 200, { ok: true, contest_id, items });
 }
-
-async function getWinners(res, url) {
-  const limit = Math.max(1, Math.min(parseInt(url.searchParams.get("limit") || "3", 10) || 3, 12));
-
-  const { data: contest, error: e1 } = await sb
-    .from("contests")
-    .select("id,title,status,created_at")
-    .eq("status", "closed")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (e1) return send(res, 500, { error: e1.message });
-  if (!contest) return send(res, 200, { contest: null, winners: [] });
-
-  const { data: rows, error: e2 } = await sb
-    .from("contest_winners")
-    .select("winner_handle, won_at, meme:memes(id, handle, img_url)")
-    .eq("contest_id", contest.id)
-    .order("won_at", { ascending: true })
-    .limit(limit);
-
-  if (e2) return send(res, 500, { error: e2.message });
-
-  const winners = (rows || []).map((w, i) => ({
-    rank: i + 1,
-    winner_handle: w.winner_handle,
-    meme: w.meme,
-    won_at: w.won_at
-  }));
-
-  return send(res, 200, { contest, winners });
-}
-
 /* ---------------- POST handlers ---------------- */
 
 async function postOpen(res, body) {
