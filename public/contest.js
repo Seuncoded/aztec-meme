@@ -2,6 +2,12 @@ const $  = (s, r=document)=>r.querySelector(s);
 const $$ = (s, r=document)=>[...r.querySelectorAll(s)];
 const toast = (m)=>{ const t=$("#toast"); t.textContent=m; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"), 2000); };
 
+// Build unified contest API URLs
+const contestUrl = (action, params = {}) => {
+  const qs = new URLSearchParams({ action, ...params });
+  return `/api/contest?${qs.toString()}`;
+};
+
 const qs = new URLSearchParams(location.search);
 const isAdmin = qs.get("admin")==="1";
 
@@ -80,7 +86,7 @@ els.imgUrl?.addEventListener("input", () => {
 
   btn.disabled = true;
   try {
-    const r = await fetch("/api/contest/vote", {
+   const r = await fetch(contestUrl("vote"), {
       method:"POST",
       headers:{ "content-type":"application/json" },
       body: JSON.stringify({ entry_id: entry, voter_handle: voter })
@@ -103,7 +109,7 @@ els.imgUrl?.addEventListener("input", () => {
 }
 
 async function refreshActive(){
-  const r = await fetch("/api/contest/active");
+  const r = await fetch(contestUrl("active"));
   const j = await r.json();
   active = j.contest || null;
   els.status.innerHTML = renderStatus(active);
@@ -172,7 +178,7 @@ els.submitHint.textContent = full
 }
 
 async function getEntries(contest_id){
-  const r = await fetch(`/api/contest/entries?contest_id=${encodeURIComponent(contest_id)}`);
+  const r = await fetch(contestUrl("entries", { contest_id }));
   const j = await r.json();
   return j.items || [];
 }
@@ -205,7 +211,7 @@ function voteTile(e){
 async function renderLeaderboard(){
   if (!active) return;
   els.leaderBox.style.display = "block";
-  const r = await fetch(`/api/contest/leaderboard?contest_id=${encodeURIComponent(active.id)}`);
+  const r = await fetch(contestUrl("leaderboard", { contest_id: active.id }));
   const j = await r.json();
   const items = j.items || [];
   els.leaderGrid.innerHTML = items.map((e,i)=>{
@@ -271,14 +277,11 @@ async function onSubmit(){
       if (!finalUrl) { toast("Upload failed: no URL returned"); return; }
     }
 
-const r = await fetch("/api/contest/submit", {
+
+const r = await fetch(contestUrl("submit"), {
   method: "POST",
   headers: { "content-type": "application/json" },
-  body: JSON.stringify({
-    contest_id: active?.id,          
-    handle,
-    imgUrl: finalUrl                
-  })
+  body: JSON.stringify({ contest_id: active?.id, handle, imgUrl: finalUrl })
 });
     const j = await r.json();
     if (!r.ok) { toast(j?.error || "Submit failed"); return; }
@@ -300,11 +303,12 @@ async function onOpen(){
   const cap   = Number(els.newCap.value || 10);
   if (!title) { toast("title required"); return; }
 
-  const r = await fetch("/api/contest/open", {
-    method:"POST",
-    headers:{ "content-type":"application/json" },
-    body: JSON.stringify({ title, submission_cap: cap })
-  });
+
+const r = await fetch(contestUrl("open"), {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ title, submission_cap: cap })
+});
   const j = await r.json();
   if (!r.ok){ toast(j.error || "Open failed"); return; }
 
@@ -321,7 +325,7 @@ async function getActiveId() {
 
   
   try {
-    const r = await fetch('/api/contest/active');
+const r = await fetch(contestUrl("active"));
     const j = await r.json();
     if (j?.contest?.id) {
       active = j.contest;
@@ -338,11 +342,12 @@ async function onStartVoting() {
   const id = await getActiveId();           
   if (!id) { toast("No active contest id"); return; }
 
-  const r = await fetch("/api/contest/start-voting", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ contest_id: id })
-  });
+
+const r = await fetch(contestUrl("start-voting"), {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ contest_id: id })
+});
   const j = await r.json();
   if (!r.ok) { toast(j.error || "Failed"); return; }
   toast("Voting started");
@@ -353,11 +358,12 @@ async function onClose() {
   const id = await getActiveId();            
   if (!id) { toast("No active contest id"); return; }
 
-  const r = await fetch("/api/contest/close", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ contest_id: id })
-  });
+
+const r = await fetch(contestUrl("close"), {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ contest_id: id })
+});
   const j = await r.json();
   if (!r.ok) { toast(j.error || "Close failed"); return; }
   toast("Closed. Winner picked!");

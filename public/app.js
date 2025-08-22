@@ -3,6 +3,11 @@ const $  = (sel, root=document) => root.querySelector(sel);
 const $$ = (sel, root=document) => [...root.querySelectorAll(sel)];
 
 
+const contestUrl = (action, params = {}) => {
+  const qs = new URLSearchParams({ action, ...params });
+  return `/api/contest?${qs.toString()}`;
+};
+
 const grid = $('#grid');
 const msg  = $('#msg');
 
@@ -304,7 +309,7 @@ async function loadWinners() {
   }
 
   try {
-    const r = await fetch('/api/contest/winners?limit=1', { cache: 'no-store' });
+    const r = await fetch(contestUrl('winners', { limit: 1 }), { cache: 'no-store' });
     const text = await r.text();
     let j;
     try { j = JSON.parse(text); } catch {
@@ -383,7 +388,7 @@ async function refreshCtas(){
   voteBtn.style.display = 'none';
 
   try {
-    const r = await fetch('/api/contest/active', { cache: 'no-store' });
+    const r = await fetch(contestUrl('active'), { cache: 'no-store' });
     if (!r.ok) return;
     const { contest } = await r.json();
 
