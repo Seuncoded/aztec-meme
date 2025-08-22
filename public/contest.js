@@ -250,7 +250,7 @@ async function onSubmit(){
 
   
     if (file) {
-      const MAX = 6 * 1024 * 1024;
+      const MAX = 3 * 1024 * 1024;
       if (file.size > MAX) { toast("Image too large (max 6MB)"); return; }
 
       const dataUrl = await new Promise((resolve, reject) => {
